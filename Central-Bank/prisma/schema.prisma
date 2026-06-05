@@ -1,0 +1,305 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  WALLET_USER
+  MERCHANT
+  CENTRAL_BANK_ADMIN
+  AUDITOR
+  SYSTEM_SERVICE
+}
+
+enum KycTier {
+  BASIC
+  VERIFIED
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum AccountType {
+  CENTRAL_RESERVE
+  ISSUANCE_ACCOUNT
+  USER_WALLET
+  MERCHANT_WALLET
+  FEE_BANK
+  FEE_GATEWAY
+  FEE_MARKETPLACE
+  FEE_POS
+  FEE_SUPPLIER
+  FEE_LOGISTICS
+  TAX_SINK
+  LOAN_POOL_ACCOUNT
+  BURN_OR_SINK_ACCOUNT
+  CLEARING_ACCOUNT
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum TransactionType {
+  LOAN_POOL_FUNDING
+  INITIAL_DISTRIBUTION
+  TRANSFER
+  PAYMENT
+  LOAN_DISBURSEMENT
+  LOAN_REPAYMENT
+  REVERSAL
+}
+
+enum TransactionStatus {
+  CREATED
+  VALIDATED
+  AUTHORIZED
+  SETTLED
+  FAILED
+  REVERSED
+}
+
+enum LedgerDirection {
+  DEBIT
+  CREDIT
+}
+
+enum PaymentRequestStatus {
+  PENDING
+  EXPIRED
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum FeeType {
+  BANK
+  GATEWAY
+  MARKETPLACE
+  POS
+  SUPPLIER
+  LOGISTICS
+  TAX
+}
+
+enum LoanStatus {
+  DISBURSED
+  PARTIAL_PAID
+  PAID
+  DEFAULTED
+  REJECTED
+}
+
+enum IdempotencyStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum MonetaryPolicyEventType {
+  INITIAL_SUPPLY
+  INITIAL_DISTRIBUTION
+  LOAN_POOL_FUNDING
+  STIMULUS
+  ISSUANCE
+  BURN
+  RESERVE_ADJUSTMENT
+}
+
+model User {
+  id           String          @id @db.Char(36)
+  name         String          @db.VarChar(191)
+  email        String          @unique @db.VarChar(191)
+  passwordHash String          @map("password_hash") @db.VarChar(191)
+  role         UserRole        @default(WALLET_USER)
+  kycTier      KycTier         @default(BASIC) @map("kyc_tier")
+  status       UserStatus      @default(ACTIVE)
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  wallets      WalletAccount[]
+
+  // Extra fields for Wallet compatibility
+  phone        String?         @unique @db.VarChar(50)
+  pinHash      String?         @map("pin_hash") @db.VarChar(191)
+
+  @@map("users")
+}
+
+model WalletAccount {
+  id                 String          @id @db.Char(36)
+  userId             String?         @map("user_id") @db.Char(36)
+  accountCode        String?         @unique @map("account_code") @db.VarChar(64)
+  accountType        AccountType     @map("account_type")
+  currency           String          @default("CBDC_IDR") @db.VarChar(16)
+  availableBalance   BigInt          @default(0) @map("available_balance")
+  holdBalance        BigInt          @default(0) @map("hold_balance")
+  status             AccountStatus   @default(ACTIVE)
+  createdAt          DateTime        @default(now()) @map("created_at")
+  updatedAt          DateTime        @updatedAt @map("updated_at")
+  user               User?           @relation(fields: [userId], references: [id])
+  paidTransactions   Transaction[]   @relation("PayerWallet")
+  receivedTransactions Transaction[] @relation("PayeeWallet")
+  ledgerEntries      LedgerEntry[]
+  payerRequests      PaymentRequest[] @relation("PaymentRequestPayer")
+  payeeRequests      PaymentRequest[] @relation("PaymentRequestPayee")
+  loans              Loan[]
+
+  @@index([userId])
+  @@index([accountCode])
+  @@map("wallet_accounts")
+}
+
+model MonetaryPolicyEvent {
+  id        String                  @id @db.Char(36)
+  eventType MonetaryPolicyEventType @map("event_type")
+  amount    BigInt
+  reason    String                  @db.VarChar(512)
+  createdBy String?                 @map("created_by") @db.Char(36)
+  createdAt DateTime                @default(now()) @map("created_at")
+
+  @@map("monetary_policy_events")
+}
+
+model Transaction {
+  id                    String            @id @db.Char(36)
+  transactionType       TransactionType   @map("transaction_type")
+  status                TransactionStatus
+  sourceApp             String            @map("source_app") @db.VarChar(64)
+  payerWalletId         String?           @map("payer_wallet_id") @db.Char(36)
+  payeeWalletId         String?           @map("payee_wallet_id") @db.Char(36)
+  grossAmount           BigInt            @map("gross_amount")
+  totalDebit            BigInt            @map("total_debit")
+  feeTotal              BigInt            @default(0) @map("fee_total")
+  taxTotal              BigInt            @default(0) @map("tax_total")
+  idempotencyKey        String?           @map("idempotency_key") @db.VarChar(191)
+  originalTransactionId String?           @map("original_transaction_id") @db.Char(36)
+  metadata              Json?
+  createdAt             DateTime          @default(now()) @map("created_at")
+  settledAt             DateTime?         @map("settled_at")
+  payerWallet           WalletAccount?    @relation("PayerWallet", fields: [payerWalletId], references: [id])
+  payeeWallet           WalletAccount?    @relation("PayeeWallet", fields: [payeeWalletId], references: [id])
+  ledgerEntries         LedgerEntry[]
+  paymentRequest        PaymentRequest?
+  originalTransaction   Transaction?      @relation("TransactionReversal", fields: [originalTransactionId], references: [id])
+  reversals             Transaction[]     @relation("TransactionReversal")
+
+  @@index([idempotencyKey])
+  @@index([payerWalletId])
+  @@index([payeeWalletId])
+  @@index([createdAt])
+  @@map("transactions")
+}
+
+model LedgerEntry {
+  id            String          @id @db.Char(36)
+  transactionId String          @map("transaction_id") @db.Char(36)
+  entryNo       Int             @map("entry_no")
+  accountId     String          @map("account_id") @db.Char(36)
+  direction     LedgerDirection
+  amount        BigInt
+  currency      String          @default("CBDC_IDR") @db.VarChar(16)
+  balanceAfter  BigInt?         @map("balance_after")
+  description   String          @db.VarChar(512)
+  createdAt     DateTime        @default(now()) @map("created_at")
+  transaction   Transaction     @relation(fields: [transactionId], references: [id])
+  account       WalletAccount   @relation(fields: [accountId], references: [id])
+
+  @@unique([transactionId, entryNo])
+  @@index([transactionId])
+  @@index([accountId])
+  @@index([createdAt])
+  @@map("ledger_entries")
+}
+
+model PaymentRequest {
+  id                String               @id @db.Char(36)
+  sourceApp         String               @map("source_app") @db.VarChar(64)
+  payerWalletId     String               @map("payer_wallet_id") @db.Char(36)
+  payeeWalletId     String               @map("payee_wallet_id") @db.Char(36)
+  grossAmount       BigInt               @map("gross_amount")
+  amountDue         BigInt               @map("amount_due")
+  status            PaymentRequestStatus @default(PENDING)
+  description       String               @db.VarChar(512)
+  metadata          Json?
+  expiresAt         DateTime             @map("expires_at")
+  createdAt         DateTime             @default(now()) @map("created_at")
+  paidTransactionId String?              @unique @map("paid_transaction_id") @db.Char(36)
+  payerWallet       WalletAccount        @relation("PaymentRequestPayer", fields: [payerWalletId], references: [id])
+  payeeWallet       WalletAccount        @relation("PaymentRequestPayee", fields: [payeeWalletId], references: [id])
+  paidTransaction   Transaction?         @relation(fields: [paidTransactionId], references: [id])
+
+  @@index([payerWalletId])
+  @@index([payeeWalletId])
+  @@index([status])
+  @@map("payment_requests")
+}
+
+model FeeRule {
+  id                   String        @id @db.Char(36)
+  sourceApp            String        @map("source_app") @db.VarChar(64)
+  feeType              FeeType       @map("fee_type")
+  bps                  Int?
+  flatAmount           BigInt?       @map("flat_amount")
+  destinationAccountId String        @map("destination_account_id") @db.Char(36)
+  active               Boolean       @default(true)
+
+  @@index([sourceApp, active])
+  @@map("fee_rules")
+}
+
+model Loan {
+  id               String        @id @db.Char(36)
+  borrowerWalletId String        @map("borrower_wallet_id") @db.Char(36)
+  principal        BigInt
+  interestAmount   BigInt        @map("interest_amount")
+  totalDue         BigInt        @map("total_due")
+  paidAmount       BigInt        @default(0) @map("paid_amount")
+  status           LoanStatus    @default(DISBURSED)
+  createdAt        DateTime      @default(now()) @map("created_at")
+  disbursedAt      DateTime?     @map("disbursed_at")
+  dueAt            DateTime?     @map("due_at")
+  borrowerWallet   WalletAccount @relation(fields: [borrowerWalletId], references: [id])
+
+  @@index([borrowerWalletId])
+  @@map("loans")
+}
+
+model AuditLog {
+  id          String   @id @db.Char(36)
+  actorUserId String?  @map("actor_user_id") @db.Char(36)
+  serviceName String   @map("service_name") @db.VarChar(64)
+  action      String   @db.VarChar(128)
+  targetType  String   @map("target_type") @db.VarChar(64)
+  targetId    String   @map("target_id") @db.VarChar(191)
+  requestId   String   @map("request_id") @db.VarChar(191)
+  reasonCode  String?  @map("reason_code") @db.VarChar(128)
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([targetType, targetId])
+  @@map("audit_logs")
+}
+
+model IdempotencyKey {
+  id              String            @id @db.Char(36)
+  idempotencyKey  String            @map("idempotency_key") @db.VarChar(191)
+  route           String            @db.VarChar(191)
+  actorId         String?           @map("actor_id") @db.VarChar(191)
+  requestHash     String            @map("request_hash") @db.VarChar(128)
+  responseBody    Json?             @map("response_body")
+  status          IdempotencyStatus @default(PROCESSING)
+  lockedUntil     DateTime?         @map("locked_until")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  @@unique([idempotencyKey, route, actorId])
+  @@map("idempotency_keys")
+}

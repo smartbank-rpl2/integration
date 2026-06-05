@@ -1,0 +1,303 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "SmartBank Wallet API Documentation",
+    "version": "1.0.0",
+    "description": "Dokumentasi API E-Wallet SmartBank (Tier-2) yang terintegrasi secara microservice dengan Central Bank moneter. Gunakan fitur 'Try it out' untuk menguji endpoint secara langsung."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:6969",
+      "description": "Server Wallet Lokal (Host)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Masukkan token JWT akses (accessToken) yang didapatkan dari endpoint login. Format: Bearer <token>"
+      }
+    },
+    "schemas": {
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["name", "email", "phone", "password", "pin"],
+        "properties": {
+          "name": { "type": "string", "example": "Budi Santoso" },
+          "email": { "type": "string", "format": "email", "example": "budi.santoso@smartbank.test" },
+          "phone": { "type": "string", "example": "081234567890" },
+          "password": { "type": "string", "example": "password123" },
+          "pin": { "type": "string", "pattern": "^[0-9]{6}$", "example": "123456", "description": "6-digit PIN transaksi" }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "budi.santoso@smartbank.test" },
+          "password": { "type": "string", "example": "password123" }
+        }
+      },
+      "LoanApplyRequest": {
+        "type": "object",
+        "required": ["amount"],
+        "properties": {
+          "amount": { "type": "integer", "example": 10000, "description": "Nominal kredit yang diajukan (maksimal Rp 100.000)" }
+        }
+      },
+      "LoanRepayRequest": {
+        "type": "object",
+        "required": ["amount"],
+        "properties": {
+          "amount": { "type": "integer", "example": 5500, "description": "Nominal cicilan pelunasan kredit" }
+        }
+      },
+      "PayInvoiceRequest": {
+        "type": "object",
+        "required": ["pin"],
+        "properties": {
+          "pin": { "type": "string", "pattern": "^[0-9]{6}$", "example": "123456", "description": "6-digit PIN transaksi" }
+        }
+      },
+      "TransferRequest": {
+        "type": "object",
+        "required": ["to_wallet_id", "amount", "pin"],
+        "properties": {
+          "to_wallet_id": { "type": "string", "example": "785cb000-2f2b-474d-aad9-6e566465dbaa", "description": "UUID Wallet Account tujuan" },
+          "amount": { "type": "integer", "example": 5000, "description": "Nominal dana yang ditransfer" },
+          "note": { "type": "string", "example": "Bayar kopi", "description": "Catatan transfer opsional" },
+          "pin": { "type": "string", "pattern": "^[0-9]{6}$", "example": "123456", "description": "6-digit PIN transaksi" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Autentikasi"],
+        "summary": "Pendaftaran User E-Wallet Baru",
+        "description": "Mendaftarkan user baru dan secara otomatis membuat akun di Central Bank dengan saldo perdana Rp 50.000.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User berhasil terdaftar dan akun moneter disiapkan."
+          },
+          "400": {
+            "description": "Input tidak valid atau email/telepon sudah terdaftar."
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Autentikasi"],
+        "summary": "Login Pengguna",
+        "description": "Masuk menggunakan email dan password untuk mendapatkan token JWT akses.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login berhasil, mengembalikan token akses."
+          },
+          "401": {
+            "description": "Kredensial salah."
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/me/balance": {
+      "get": {
+        "tags": ["Wallet"],
+        "summary": "Mendapatkan Saldo Dompet",
+        "description": "Membaca saldo riil (CBDC_IDR) terkini yang terdaftar di Central Bank untuk akun pengguna yang login.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Detail saldo berhasil ditarik."
+          },
+          "401": {
+            "description": "Tidak diotorisasi (Token JWT tidak valid atau kosong)."
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/me/transactions": {
+      "get": {
+        "tags": ["Wallet"],
+        "summary": "Mendapatkan Riwayat Mutasi Rekening",
+        "description": "Menampilkan seluruh daftar transaksi Moneter (Transfer, Kredit, Pembayaran) beserta detail debit/kredit dan pihak lawan.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Riwayat mutasi berhasil diambil."
+          }
+        }
+      }
+    },
+    "/api/v1/wallets/me/invoice/generate-test": {
+      "post": {
+        "tags": ["Pembayaran Tagihan / QR"],
+        "summary": "Membuat Tagihan QR Simulasi Instan (Dev Helper)",
+        "description": "Membuat permohonan pembayaran (Payment Request) PENDING senilai Rp 10.000 ke Central Bank dengan payee default untuk diuji bayar.",
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "201": {
+            "description": "Tagihan QR berhasil disimulasikan."
+          }
+        }
+      }
+    },
+    "/api/v1/payment-requests/{id}/pay": {
+      "post": {
+        "tags": ["Pembayaran Tagihan / QR"],
+        "summary": "Membayar Invoice / Tagihan QR",
+        "description": "Menyelesaikan permohonan pembayaran (Payment Request) moneter dengan melakukan settlement saldo secara ACID di Central Bank. Memerlukan PIN dan Idempotency-Key.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID tagihan / payment_request_id",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Kunci idempotensi unik transaksi untuk mencegah double-spend",
+            "schema": { "type": "string", "example": "idem_pay_12345" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/PayInvoiceRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tagihan berhasil diselesaikan."
+          },
+          "401": {
+            "description": "PIN salah atau tidak disertakan."
+          }
+        }
+      }
+    },
+    "/api/v1/loans/apply": {
+      "post": {
+        "tags": ["Kredit UMKM"],
+        "summary": "Mengajukan Pinjaman UMKM Baru",
+        "description": "Mengajukan kredit moneter ke LOAN_POOL_ACCOUNT bank sentral. Jika disetujui, dana langsung dicairkan ke saldo dompet user.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Kunci idempotensi unik transaksi",
+            "schema": { "type": "string", "example": "idem_loan_12345" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoanApplyRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pinjaman berhasil disetujui dan dicairkan."
+          }
+        }
+      }
+    },
+    "/api/v1/loans/{loan_id}/repay": {
+      "post": {
+        "tags": ["Kredit UMKM"],
+        "summary": "Membayar Cicilan Pinjaman",
+        "description": "Membayar cicilan pinjaman UMKM terutang langsung dari saldo CBDC e-wallet user ke central bank.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "loan_id",
+            "in": "path",
+            "required": true,
+            "description": "ID pinjaman yang ingin dicicil",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Kunci idempotensi unik transaksi",
+            "schema": { "type": "string", "example": "idem_repay_12345" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoanRepayRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cicilan berhasil diproses."
+          }
+        }
+      }
+    },
+    "/api/v1/transfers": {
+      "post": {
+        "tags": ["Transfer P2P"],
+        "summary": "Melakukan Transfer Dana P2P",
+        "description": "Mengirimkan saldo CBDC dari wallet pengirim ke wallet penerima secara instan dengan PIN & Idempotency-Key.",
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Kunci idempotensi unik transaksi",
+            "schema": { "type": "string", "example": "idem_transfer_12345" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransferRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Transfer berhasil diproses."
+          }
+        }
+      }
+    }
+  }
+}

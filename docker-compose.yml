@@ -1,0 +1,91 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: smartbank-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: central_bank_core
+      MYSQL_USER: central_bank
+      MYSQL_PASSWORD: central_bank_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "central_bank", "-pcentral_bank_password"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  central-bank:
+    build:
+      context: ./Central-Bank
+      dockerfile: Dockerfile
+    container_name: smartbank-central-bank
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "mysql://central_bank:central_bank_password@mysql:3306/central_bank_core"
+      JWT_SECRET: "change-me-for-development"
+      PORT: 3000
+      TOTAL_MONEY_SUPPLY: 1000000000
+      INITIAL_USER_BALANCE: 50000
+      INITIAL_DISTRIBUTION_MAX_BPS: 200
+      RESERVE_MINIMUM_BPS: 9800
+      DAILY_TRANSACTION_LIMIT: 10
+      TRANSACTION_COOLDOWN_SECONDS: 10
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:3000/api/v1/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  central-bank-ui:
+    build:
+      context: ./Central-Bank/frontend
+      dockerfile: Dockerfile
+    container_name: smartbank-central-bank-ui
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_BASE_URL: "http://localhost:3000/api/v1"
+    depends_on:
+      - central-bank
+
+  wallet:
+    build:
+      context: ./Wallet
+      dockerfile: Dockerfile
+    container_name: smartbank-wallet
+    ports:
+      - "6969:6969"
+    environment:
+      PORT: 6969
+      NODE_ENV: development
+      JWT_SECRET: "change-me-for-development"
+      JWT_ACCESS_EXPIRES: 3600
+      JWT_REFRESH_EXPIRES: 604800
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: central_bank
+      DB_PASSWORD: central_bank_password
+      DB_NAME: central_bank_core
+      USE_IN_MEMORY_DB: "false"
+      CENTRAL_BANK_CORE_URL: "http://central-bank:3000"
+      MOCK_CENTRAL_BANK: "false"
+      COOLDOWN_SECONDS: 10
+      DAILY_LIMIT_COUNT: 10
+    depends_on:
+      mysql:
+        condition: service_healthy
+      central-bank:
+        condition: service_healthy
+
+volumes:
+  mysql_data:
