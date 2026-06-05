@@ -30,3 +30,9 @@ Sistem ini menggunakan arsitektur microservices-lite yang dipisahkan ke dalam be
 ## 4. Notes & Constraints
 - Dilarang mengganti *engine* database (harus menggunakan MySQL yang sudah ada dan tidak merusak data eksisting).
 - Semua pengembangan fitur ke depannya wajib dikoordinasikan melalui API Gateway.
+
+## 5. Rencana Pengembangan Selanjutnya (Next Steps)
+Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
+1. **Pemisahan Fitur Berdasarkan Role:** Mengimplementasikan spesifikasi fungsionalitas dan perizinan spesifik untuk masing-masing role (`NASABAH`, `ADMIN`, `MANAGER`, `TELLER`).
+2. **Pengecekan Keseluruhan API:** Mengecek dan melakukan validasi keamanan serta fungsional pada semua *endpoint* API (Wallet & Central-Bank) yang dilewati oleh Gateway.
+3. **Pembuatan Frontend:** Merancang dan membangun UI/UX antarmuka pengguna *(Frontend)* yang akan terhubung ke API Gateway untuk memvisualisasikan sistem.
