@@ -1,0 +1,342 @@
+# 02_DESKRIPSI_WALLET_CONTEXT_CBDC
+
+Dokumen ini adalah context deskripsi khusus untuk domain WALLET pada sistem simulasi CBDC CentralBank & Wallet Ecosystem.
+
+File ini dibuat untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, atau coding assistant lain agar memahami batas tanggung jawab, konsep domain, fitur, UX, dan integrasi Wallet sebelum menulis kode.
+
+Status:
+- Academic/learning prototype.
+- Bukan sistem finansial produksi.
+- Wallet boleh mengambil inspirasi pengalaman dari aplikasi bank/e-wallet modern seperti bank besar di Indonesia, tetapi dilarang meniru merek, logo, UI proprietary, endpoint, data, atau mengklaim terhubung dengan BCA/BI/bank nyata.
+
+Sumber konsep:
+- Workbook Tugas Besar RPL 2 yang dilampirkan user.
+- Dokumen riset arsitektur sistem moneter terpusat/CBDC yang dilampirkan user.
+
+======================================================================
+1. IDENTITAS DOMAIN WALLET
+======================================================================
+
+Nama modul:
+SmartBank Wallet
+
+Peran utama:
+Wallet adalah aplikasi user-facing yang menjadi interface antara pengguna retail/UMKM dan CentralBank Core. Wallet tidak menciptakan uang, tidak menjadi sumber kebenaran saldo, dan tidak menyelesaikan settlement sendiri. Wallet hanya mengelola pengalaman pengguna, autentikasi, profil, KYC ringan, tampilan saldo, instruksi pembayaran, dan riwayat transaksi.
+
+Wallet berperan seperti provider/PJP simulatif pada two-tier CBDC model.
+
+======================================================================
+2. TUJUAN WALLET
+======================================================================
+
+Tujuan utama:
+1. Memberikan pengalaman mobile banking/e-wallet yang mudah dipahami pengguna.
+2. Menyediakan registrasi, login, PIN, dan keamanan akun.
+3. Menampilkan saldo CBDC yang bersumber dari CentralBank Core.
+4. Mengirim payment request ke CentralBank Core melalui API Gateway.
+5. Mendukung transfer P2P, pembayaran merchant, QR payment, top-up simulatif, withdrawal simulatif, dan pembayaran invoice.
+6. Menampilkan riwayat transaksi settled, pending, failed, refunded, dan reversed.
+7. Menjadi channel pembayaran untuk Marketplace, POS, SupplierHub, dan LogistiKita.
+8. Menjaga privasi pengguna dengan hanya menampilkan data yang diperlukan.
+
+Tujuan desain:
+- Wallet terasa seperti aplikasi bank digital modern.
+- Wallet tetap patuh pada arsitektur CBDC two-tier.
+- Wallet tidak boleh memiliki kemampuan mint/burn.
+- Wallet tidak boleh menulis ledger sendiri sebagai final truth.
+
+======================================================================
+3. BATAS TANGGUNG JAWAB WALLET
+======================================================================
+
+Wallet bertanggung jawab untuk:
+- User registration dan login.
+- Device/session management.
+- PIN transaksi.
+- Profile dan KYC ringan untuk prototype.
+- Menampilkan saldo dari CentralBank Core.
+- Membuat transfer instruction.
+- Membuat payment confirmation ke invoice/QR.
+- Menampilkan transaction history.
+- Menampilkan notification.
+- Mengirim payment request ke CentralBank Core.
+- Menangani UX untuk pending/failed/success transaction.
+- Menyediakan bukti transaksi digital setelah settlement.
+
+Wallet tidak bertanggung jawab untuk:
+- Menciptakan atau membakar CBDC.
+- Mengubah saldo langsung tanpa settlement CentralBank Core.
+- Menghitung total money supply final.
+- Menghapus ledger.
+- Mengganti aturan fee/tax sepihak.
+- Menentukan audit/regulatory policy final.
+- Mengelola katalog produk marketplace atau stok POS.
+- Mengklaim sebagai aplikasi BCA/BI/bank nyata.
+
+======================================================================
+4. HUBUNGAN WALLET DENGAN CENTRAL BANK
+======================================================================
+
+Wallet dan CentralBank Core harus dipisah secara arsitektural.
+
+Alur umum:
+1. User membuka Wallet.
+2. Wallet mengambil saldo dari CentralBank Core atau read model yang tersinkronisasi.
+3. User membuat transfer/pembayaran.
+4. Wallet membuat payment request dengan idempotency key.
+5. API Gateway memvalidasi auth/rate limit.
+6. CentralBank Core melakukan validasi finansial dan settlement.
+7. CentralBank Core mengembalikan status SUCCESS, PENDING, FAILED, atau REVERSED.
+8. Wallet menampilkan status transaksi dan bukti pembayaran.
+
+Aturan wajib:
+- Wallet balance display tidak boleh menjadi sumber kebenaran.
+- Jika ada perbedaan saldo lokal dan CentralBank Core, saldo CentralBank Core menang.
+- Wallet harus menyimpan request_id/idempotency_key untuk mencegah double submit.
+- Wallet harus bisa menangani retry tanpa membuat transaksi ganda.
+
+======================================================================
+5. TIPE PENGGUNA WALLET
+======================================================================
+
+A. Retail User
+Pengguna individu yang memakai wallet untuk transfer, bayar merchant, melihat saldo, dan melihat riwayat.
+
+B. Merchant/UMKM
+Pengguna usaha yang menerima pembayaran, membuat QR/invoice, melihat settlement masuk, mengajukan pinjaman simulatif, dan melihat insight dasar.
+
+C. Cashier/POS User
+Pegawai toko yang menerima pembayaran via QR/POS dan memverifikasi settlement.
+
+D. Provider Admin
+Admin provider wallet simulatif untuk support, melihat status akun terbatas, dan membantu proses KYC ringan.
+
+E. System Service
+Service internal yang memanggil wallet API untuk integrasi marketplace, POS, supplier, atau logistik.
+
+======================================================================
+6. FITUR WALLET YANG DISARANKAN
+======================================================================
+
+A. Onboarding
+- Register dengan nama, email/phone, password, dan PIN transaksi.
+- Verifikasi OTP simulatif.
+- Buat wallet account melalui CentralBank Core.
+- KYC ringan: NIK dummy, tanggal lahir, alamat, tipe user, merchant info jika UMKM.
+
+B. Authentication dan security
+- Login email/phone + password.
+- JWT/session token.
+- PIN untuk transaksi finansial.
+- Optional biometric placeholder untuk UX.
+- Device binding simulatif.
+- Logout semua device.
+
+C. Home dashboard
+- Saldo CBDC.
+- Quick actions: Transfer, Scan QR, Pay Invoice, Top Up Simulatif, History.
+- Card ringkasan pemasukan/pengeluaran.
+- Status KYC.
+- Notification transaksi.
+
+D. Transfer P2P
+- Input nomor wallet/phone/email penerima.
+- Validasi nama penerima masked.
+- Input nominal.
+- Review detail transfer.
+- Input PIN.
+- Kirim payment request ke CentralBank Core.
+- Tampilkan bukti transaksi.
+
+E. Merchant payment
+- Scan QR atau input invoice code.
+- Tampilkan merchant name, amount, fee/tax jika ada.
+- Konfirmasi pembayaran.
+- Settlement oleh CentralBank Core.
+- Merchant menerima notifikasi payment settled.
+
+F. QR payment
+- Merchant membuat QR dinamis untuk invoice tertentu.
+- QR harus memiliki expiry time.
+- QR tidak boleh menyimpan data sensitif penuh.
+- QR berisi payment_request_id atau invoice_id, bukan saldo.
+
+G. Transaction history
+- Filter tanggal, status, tipe transaksi, arah masuk/keluar.
+- Detail transaksi: amount, fee, tax, sender, receiver masked, reference_id, status, timestamp.
+- Download/Share receipt simulatif.
+
+H. Top-up dan withdrawal simulatif
+- Top-up hanya simulasi distribusi dari reserve atau provider settlement sesuai aturan tugas.
+- Withdrawal simulatif dapat memindahkan dana ke account system atau cash-out placeholder.
+- Tidak boleh mengklaim integrasi bank nyata.
+
+I. Merchant tools
+- Buat invoice.
+- Buat QR pembayaran.
+- Lihat daftar transaksi masuk.
+- Settlement report.
+- Refund request.
+- Basic UMKM insight.
+
+J. Notification
+- Push/in-app notification simulatif untuk transaksi masuk, transaksi sukses, transaksi gagal, refund, dan security alert.
+
+======================================================================
+7. PRINSIP UX WALLET BERGAYA BANK MODERN
+======================================================================
+
+Gunakan inspirasi umum dari mobile banking/e-wallet modern:
+- Navigasi sederhana.
+- Home menampilkan saldo dan quick action.
+- Proses transfer memakai flow review sebelum submit.
+- Bukti transaksi jelas.
+- Riwayat mudah difilter.
+- Merchant payment cepat dengan QR.
+- Security action seperti PIN dan session management terlihat jelas.
+
+Larangan UX:
+- Jangan memakai logo/nama/merek BCA atau institusi nyata.
+- Jangan membuat tampilan yang meniru persis aplikasi proprietary.
+- Jangan menampilkan nomor rekening nyata.
+- Jangan menggunakan endpoint bank nyata.
+- Jangan membuat klaim bahwa pembayaran benar-benar terjadi di sistem bank nyata.
+
+======================================================================
+8. DATA YANG DIKELOLA WALLET
+======================================================================
+
+Wallet boleh menyimpan:
+- user_id
+- wallet_id dari CentralBank Core
+- nama pengguna
+- email/phone
+- password_hash
+- pin_hash
+- kyc_status
+- user_type
+- device/session data
+- notification preference
+- cached transaction summary untuk read model
+
+Wallet tidak boleh menyimpan sebagai final truth:
+- Saldo final tanpa sinkronisasi CentralBank Core.
+- Ledger master.
+- Money supply.
+- Reserve.
+- Admin adjustment bank sentral.
+
+Aturan privasi:
+- Tampilkan data penerima secara masked sebelum transfer, misalnya "Ugi S." atau merchant name.
+- Jangan tampilkan KYC lengkap ke merchant.
+- Jangan tampilkan data audit regulator ke user biasa.
+- Gunakan role-based access control.
+
+======================================================================
+9. STATUS TRANSAKSI WALLET
+======================================================================
+
+Wallet harus memahami status berikut:
+
+DRAFT:
+User baru membuat instruksi pembayaran, belum dikirim.
+
+PENDING:
+Payment request sudah dikirim tetapi settlement belum final.
+
+SUCCESS/SETTLED:
+CentralBank Core sudah menulis ledger debit/kredit seimbang.
+
+FAILED:
+Transaksi gagal, misalnya saldo tidak cukup, account frozen, invoice expired, atau validasi gagal.
+
+REVERSED:
+Transaksi sukses sebelumnya dibalik dengan reversal transaction.
+
+REFUNDED:
+Dana dikembalikan melalui refund transaction.
+
+Aturan tampilan:
+- Jangan tampilkan transaksi PENDING sebagai sukses.
+- Order marketplace/POS hanya dianggap lunas jika status SETTLED.
+- Jika user menekan bayar dua kali, gunakan idempotency key agar tidak terjadi double payment.
+
+======================================================================
+10. INTEGRASI WALLET DENGAN APLIKASI LAIN
+======================================================================
+
+Marketplace/PasarKita:
+- Wallet membayar invoice order.
+- Merchant menerima settlement setelah order flow sesuai aturan.
+
+POS/WarungPOS:
+- Kasir membuat QR.
+- Pembeli scan QR menggunakan wallet.
+- POS menerima callback/notification saat settled.
+
+SupplierHub:
+- UMKM membayar supplier dari wallet merchant.
+- Settlement dicatat CentralBank Core.
+
+LogistiKita:
+- Ongkir dibayar melalui wallet atau invoice marketplace.
+- Callback settlement mengubah status pengiriman.
+
+UMKM Insight:
+- Membaca data transaksi yang sudah settled.
+- Tidak boleh menulis saldo.
+
+======================================================================
+11. ATURAN KEAMANAN WALLET
+======================================================================
+
+Wajib:
+1. Password harus di-hash.
+2. PIN harus di-hash terpisah dari password.
+3. Transaksi finansial wajib validasi PIN.
+4. Endpoint finansial wajib idempotency key.
+5. Rate limit login, OTP, dan payment submit.
+6. Session token memiliki expiry.
+7. Audit login dan device baru.
+8. Jangan log password, PIN, token penuh, atau data KYC lengkap.
+9. Gunakan HTTPS pada deployment nyata; untuk prototype, dokumentasikan asumsi.
+10. Jangan menampilkan stack trace internal ke user.
+
+======================================================================
+12. NON-GOAL DAN LARANGAN
+======================================================================
+
+Wallet tidak boleh:
+1. Menjadi penerbit uang.
+2. Mengubah saldo langsung tanpa CentralBank Core.
+3. Menganggap transaksi sukses sebelum settlement.
+4. Menyimpan PIN/password mentah.
+5. Meniru aplikasi BCA atau bank nyata secara identik.
+6. Mengklaim pembayaran real banking.
+7. Menggunakan data nasabah nyata.
+8. Membuat fitur bypass KYC, pajak, fee, atau AML simulatif.
+9. Membuat programmable money retail seperti uang yang hanya bisa dipakai user tertentu sebagai default.
+10. Menghapus history transaksi settled.
+
+======================================================================
+13. INSTRUKSI KHUSUS UNTUK AGENT CODING
+======================================================================
+
+Saat mengerjakan modul Wallet, agent harus memprioritaskan:
+1. User flow yang jelas: register, login, cek saldo, transfer, bayar QR, history.
+2. Integrasi payment request ke CentralBank Core.
+3. Idempotency dan PIN validation untuk transaksi finansial.
+4. UI status yang tidak menyesatkan.
+5. Privacy masking pada data penerima/pengirim.
+6. Receipt yang memuat reference_id dan settlement timestamp.
+7. Test case untuk double submit, insufficient balance, invoice expired, account frozen, dan retry.
+
+Jangan membuat saldo frontend statis sebagai kebenaran. Saldo harus berasal dari CentralBank Core atau read model yang disinkronkan dari settlement ledger.
+
+======================================================================
+14. RINGKASAN WALLET UNTUK PROMPT AGENT
+======================================================================
+
+Gunakan ringkasan ini ketika memberi instruksi singkat ke agent coding:
+
+"Bangun SmartBank Wallet sebagai aplikasi user-facing untuk CBDC prototype. Wallet mengelola register, login, PIN, profile, KYC ringan, cek saldo, transfer, QR payment, invoice payment, transaction history, notification, dan merchant tools. Wallet adalah tier provider/PJP simulatif, bukan penerbit uang. Semua saldo final dan settlement berasal dari CentralBank Core. Setiap transaksi finansial harus memakai idempotency key, PIN validation, dan status yang benar. Jangan meniru atau mengklaim terhubung dengan BCA/BI/bank nyata. Jangan membuat programmable money retail sebagai default."

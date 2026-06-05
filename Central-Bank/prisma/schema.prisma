@@ -13,6 +13,8 @@ enum UserRole {
   CENTRAL_BANK_ADMIN
   AUDITOR
   SYSTEM_SERVICE
+  MANAGER
+  TELLER
 }
 
 enum KycTier {

@@ -1,0 +1,309 @@
+# 05_ATURAN_KEUANGAN_LEDGER_CONTEXT_CBDC
+
+Dokumen ini adalah bagian terpisah dari context engineering sistem CBDC CentralBank & Wallet Ecosystem untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, atau coding assistant lain.
+
+Tujuan file: Menjadi sumber aturan finansial, fee, pajak, pinjaman, money supply, ledger double-entry, dan algoritma settlement.
+
+Status: academic/learning prototype, bukan sistem finansial produksi. Jangan mengklaim integrasi dengan BI, BCA, atau bank nyata. Gunakan hanya sebagai rancangan simulasi.
+
+Sumber konsep: workbook Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC yang dilampirkan user.
+
+======================================================================
+
+GLOBAL CONTEXT
+
+======================================================================
+
+# CONTEXT-CBDC-CENTRAL-BANK-WALLET-AGENTIC-AI.txt
+
+Dokumen ini adalah context engineering untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, Devin-like agent, atau coding assistant lain. Gunakan file ini sebagai sumber utama ketika membangun sistem simulasi CBDC, bank sentral, wallet retail bergaya aplikasi bank komersial modern, dan ekosistem UMKM terintegrasi.
+
+Status: academic/learning prototype, bukan sistem finansial produksi.
+Bahasa utama implementasi: bebas, tetapi contoh struktur disarankan memakai TypeScript/NestJS atau Laravel/Spring Boot selama prinsip domain dan kontrak API di bawah tetap dipatuhi.
+Sumber konsep: workbook kebutuhan aplikasi Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC.
+
+======================================================================
+6. ATURAN KEUANGAN SISTEM
+======================================================================
+
+Gunakan integer untuk uang. Jangan gunakan floating point untuk saldo/amount. Simpan amount dalam rupiah integer atau minor unit konsisten.
+
+Parameter default:
+1. Total Money Supply: 1.000.000.000
+   - Batas maksimal uang dalam sistem.
+   - Menjaga stabilitas ekonomi dan mencegah inflasi/deflasi tidak terkendali.
+
+2. Saldo Awal Mahasiswa/User: 50.000
+   - Saldo awal setiap user saat wallet aktif.
+   - Hanya boleh diberikan jika total distribusi awal tidak melanggar batas supply.
+
+3. Distribusi Awal ke User: <= 2% dari total supply
+   - Maksimum 20.000.000 dari total 1.000.000.000 boleh langsung beredar pada fase awal.
+
+4. Bank Reserve: >= 98%
+   - Minimal 980.000.000 tetap berada di reserve pada fase awal.
+
+5. Fee Marketplace: 2%
+   - Dipotong dari transaksi penjualan.
+   - Revenue marketplace dan/atau money sink sesuai konfigurasi.
+
+6. Fee POS: 1%
+   - Biaya transaksi kasir.
+   - Mencegah spam transaksi kecil.
+
+7. Fee Supplier: 3%
+   - Margin/fee supplier.
+   - Mensimulasikan supply chain.
+
+8. Biaya Logistik: 5% atau flat 5.000
+   - Biaya pengiriman.
+   - Pilih yang lebih cocok untuk fitur: percentage atau flat.
+   - Simpan konfigurasi agar bisa diuji.
+
+9. Fee Bank: 1%
+   - Biaya transaksi CentralBank/SmartBank.
+   - Masuk ke reserve/fee account.
+
+10. Fee Gateway: 0,5%
+   - Dipotong dari setiap transaksi via API.
+   - Simulasi biaya infrastruktur.
+
+11. Pajak Sistem: 2%
+   - Potongan tambahan transaksi.
+   - Money sink anti inflasi.
+
+12. UMKM Insight Subscription: 10.000/minggu
+   - Biaya akses analytics premium.
+
+13. Bunga Pinjaman: 10%
+   - Bunga loan dari bank.
+   - Membatasi ekspansi uang.
+
+14. Limit Pinjaman: 100.000/user
+   - Batas maksimal outstanding loan per user.
+   - Mencegah over-credit.
+
+15. Cooldown Transaksi: 10-30 detik
+   - Jeda antar transaksi untuk mengontrol velocity.
+   - Default rekomendasi: 10 detik untuk development, 30 detik untuk mode strict.
+
+16. Max Transaksi Harian: 10 transaksi/user/hari
+   - Batas aktivitas finansial.
+   - Dapat berbeda untuk KYC tier.
+
+17. Stimulus Bank: 5.000/minggu opsional
+   - Insentif ekonomi untuk mencegah deflasi.
+   - Harus dicatat sebagai monetary policy event.
+
+18. Distribusi Uang Bertahap: mingguan
+   - Penambahan uang terkontrol.
+   - Harus menjaga total supply dan reserve ratio.
+
+Formula dasar:
+- total_supply = reserve_balance + circulating_supply + burned_supply_adjustment jika burn dicatat terpisah.
+- circulating_supply = sum(balance semua wallet/account non-reserve yang aktif).
+- available_reserve = reserve_balance - reserve_minimum_required.
+- loan_total_due = principal + round(principal * 10%).
+- fee = floor(amount * fee_rate) atau round_half_up sesuai policy. Pilih satu dan dokumentasikan.
+
+Fee calculation policy:
+- Untuk menghindari pembulatan tidak konsisten, gunakan basis points.
+- 1% = 100 bps.
+- 0,5% = 50 bps.
+- 2% = 200 bps.
+- fee_amount = floor(gross_amount * bps / 10000).
+
+Urutan settlement rekomendasi untuk transaksi pembelian:
+1. Hitung gross_amount barang/jasa.
+2. Hitung fee marketplace/POS/supplier/logistik sesuai konteks.
+3. Hitung bank fee.
+4. Hitung gateway fee.
+5. Hitung pajak sistem.
+6. total_debit_payer = gross_amount + biaya_logistik_jika_ditanggung_pembeli + gateway_fee + bank_fee + pajak.
+7. Kredit penerima utama sesuai net amount.
+8. Kredit fee account terkait.
+9. Kredit tax/sink account.
+10. Tulis ledger entries secara atomic.
+
+Reversal/refund:
+- Jangan hapus ledger.
+- Buat transaction type REVERSAL atau REFUND.
+- Reversal harus menunjuk original_transaction_id.
+- Fee refund harus mengikuti policy: full refund, partial fee retained, atau manual admin. Untuk prototype, gunakan full reversal agar mudah dites.
+
+======================================================================
+7. PRINSIP LEDGER DAN AKUNTANSI
+======================================================================
+
+Ledger adalah jantung sistem. Implementasi yang benar lebih penting daripada UI.
+
+Wajib:
+- Append-only.
+- Atomic database transaction.
+- Idempotency key untuk semua endpoint yang menciptakan transaksi.
+- Optimistic/pessimistic lock pada wallet balance saat debit/kredit.
+- Tidak boleh ada saldo negatif kecuali account teknis yang secara eksplisit diizinkan.
+- Semua transaksi punya status lifecycle.
+
+Transaction status:
+- CREATED: request dibuat.
+- VALIDATED: input valid, saldo belum berubah.
+- AUTHORIZED: saldo cukup dan hold opsional dibuat.
+- SETTLED: ledger posted dan saldo final berubah.
+- FAILED: gagal sebelum settlement.
+- REVERSED: sudah dibalik dengan reversal transaction.
+
+Payment request status:
+- PENDING
+- EXPIRED
+- PAID
+- FAILED
+- CANCELLED
+
+Ledger entry fields minimum:
+- id
+- transaction_id
+- entry_no
+- account_id
+- direction: DEBIT/CREDIT
+- amount
+- currency: CBDC_IDR
+- balance_after optional
+- description
+- created_at
+
+Double-entry validation:
+- sum(debit) == sum(credit)
+- amount > 0
+- account_id valid
+- transaction_id unique group
+
+Account types:
+- CENTRAL_RESERVE
+- USER_WALLET
+- MERCHANT_WALLET
+- FEE_BANK
+- FEE_GATEWAY
+- FEE_MARKETPLACE
+- FEE_POS
+- FEE_SUPPLIER
+- FEE_LOGISTICS
+- TAX_SINK
+- LOAN_RECEIVABLE
+- STIMULUS_EXPENSE
+- CLEARING
+
+CBDC issuance:
+- Debit/kurangi CENTRAL_RESERVE, kredit USER_WALLET jika distribusi dari reserve.
+- Jika model issuance menambah total supply, buat MONEY_SUPPLY_EVENT dan pastikan total <= 1.000.000.000.
+
+CBDC burn:
+- Debit wallet/source, kredit BURN_ACCOUNT atau kurangi total supply via burn event.
+- Untuk prototype, lebih aman gunakan sink/reserve account daripada mengubah total supply secara langsung.
+
+======================================================================
+11. CORE ALGORITHMS / PSEUDOCODE
+======================================================================
+
+11.1 Atomic settlement
+
+function settlePayment(paymentRequestId, payerUser, idempotencyKey):
+  begin database transaction
+
+  existing = find transaction by idempotencyKey
+  if existing exists:
+    return existing
+
+  paymentRequest = lock payment_requests where id = paymentRequestId
+  if paymentRequest.status != PENDING:
+    throw INVALID_PAYMENT_STATUS
+  if now > paymentRequest.expires_at:
+    mark EXPIRED
+    throw PAYMENT_EXPIRED
+
+  payer = lock wallet account paymentRequest.payer_wallet_id
+  payee = lock wallet account paymentRequest.payee_wallet_id
+
+  enforceCooldown(payer.user_id)
+  enforceDailyLimit(payer.user_id)
+
+  quote = calculateFees(paymentRequest.source_app, paymentRequest.gross_amount)
+  totalDebit = quote.total_debit
+
+  if payer.available_balance < totalDebit:
+    throw INSUFFICIENT_BALANCE
+
+  create transaction status SETTLED
+  debit payer totalDebit
+  credit payee quote.net_to_payee
+  credit fee accounts
+  credit tax sink account
+  write ledger entries with total debit = total credit
+  mark payment request PAID
+  increment daily transaction counter
+  write audit log
+
+  commit
+  return transaction
+
+11.2 Transfer antar user
+
+function transfer(fromWallet, toWallet, amount, note, idempotencyKey):
+  validate amount > 0
+  quote bank/gateway/tax based on transfer policy
+  totalDebit = amount + fees
+  lock fromWallet and toWallet
+  ensure fromWallet.available_balance >= totalDebit
+  write transaction and ledger:
+    DEBIT fromWallet totalDebit
+    CREDIT toWallet amount
+    CREDIT bankFeeAccount bank_fee
+    CREDIT gatewayFeeAccount gateway_fee
+    CREDIT taxSink tax
+  commit
+
+11.3 Initial distribution
+
+function createWalletForUser(user):
+  begin tx
+  reserve = lock CENTRAL_RESERVE
+  if totalInitialDistributed + 50000 > 2% totalSupply:
+    initial = 0 or require admin approval
+  else:
+    initial = 50000
+  debit reserve initial
+  credit new user wallet initial
+  write ledger transaction INITIAL_DISTRIBUTION
+  commit
+
+11.4 Loan disbursement
+
+function disburseLoan(wallet, amount):
+  if amount <= 0 or amount > 100000: reject
+  if outstandingLoan(wallet.user) + amount > 100000: reject
+  reserve = lock CENTRAL_RESERVE
+  if reserve.available_balance - amount < minimumReserve: reject
+  interest = floor(amount * 1000 / 10000) // 10%
+  debit reserve amount
+  credit borrower wallet amount
+  create loan principal amount interest total_due
+  write ledger transaction LOAN_DISBURSEMENT
+
+11.5 Stimulus weekly
+
+function distributeWeeklyStimulus():
+  for each active wallet eligible:
+    amount = 5000
+    ensure reserve sufficient and supply policy allows
+    debit reserve amount
+    credit wallet amount
+    write ledger STIMULUS
+  create monetary_policy_event
+
+======================================================================
+
+CATATAN UNTUK AGENT
+
+======================================================================
+
+Baca file ini bersama file context lain dalam folder yang sama. Jika ada konflik, prioritaskan aturan keuangan, ledger double-entry, atomic settlement, dan prinsip two-tier CBDC.

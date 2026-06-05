@@ -1,0 +1,736 @@
+# 06_PENGEMBANGAN_ARSITEKTUR_CONTEXT_CBDC
+
+Dokumen ini adalah bagian terpisah dari context engineering sistem CBDC CentralBank & Wallet Ecosystem untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, atau coding assistant lain.
+
+Tujuan file: Menjelaskan arsitektur teknis, API contract, database schema, security/compliance, NFR, acceptance criteria, test case, dan roadmap implementasi.
+
+Status: academic/learning prototype, bukan sistem finansial produksi. Jangan mengklaim integrasi dengan BI, BCA, atau bank nyata. Gunakan hanya sebagai rancangan simulasi.
+
+Sumber konsep: workbook Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC yang dilampirkan user.
+
+======================================================================
+
+GLOBAL CONTEXT
+
+======================================================================
+
+# CONTEXT-CBDC-CENTRAL-BANK-WALLET-AGENTIC-AI.txt
+
+Dokumen ini adalah context engineering untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, Devin-like agent, atau coding assistant lain. Gunakan file ini sebagai sumber utama ketika membangun sistem simulasi CBDC, bank sentral, wallet retail bergaya aplikasi bank komersial modern, dan ekosistem UMKM terintegrasi.
+
+Status: academic/learning prototype, bukan sistem finansial produksi.
+Bahasa utama implementasi: bebas, tetapi contoh struktur disarankan memakai TypeScript/NestJS atau Laravel/Spring Boot selama prinsip domain dan kontrak API di bawah tetap dipatuhi.
+Sumber konsep: workbook kebutuhan aplikasi Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC.
+
+======================================================================
+2. ARSITEKTUR TINGKAT TINGGI
+======================================================================
+
+Gunakan arsitektur modular. Untuk tugas besar, monorepo modular lebih mudah dibanding microservices penuh. Namun boundary domain harus jelas.
+
+Opsi arsitektur monorepo:
+/apps
+  /api-gateway
+  /centralbank-core
+  /wallet-api
+  /marketplace
+  /pos
+  /supplierhub
+  /logistikita
+  /umkm-insight
+/packages
+  /common
+  /auth
+  /ledger
+  /money
+  /testing
+
+Opsi sederhana dalam satu backend modular:
+/src/modules
+  auth/
+  centralbank/
+  wallet/
+  ledger/
+  payments/
+  loans/
+  fees/
+  marketplace/
+  pos/
+  supplierhub/
+  logistics/
+  analytics/
+  gateway/
+  audit/
+
+Komponen utama:
+1. API Gateway/Integrator
+   - Validasi JWT.
+   - Routing request antar modul/service.
+   - Request logging.
+   - Rate limiting opsional.
+   - Idempotency-key enforcement untuk transaksi finansial.
+
+2. CentralBank Core
+   - Issuance CBDC.
+   - Burn/redemption CBDC.
+   - Reserve account.
+   - Wallet account master balance.
+   - Double-entry ledger.
+   - Payment settlement.
+   - Transfer user-to-user.
+   - Fee/tax calculation.
+   - Loan issuance dan repayment.
+   - Monetary policy event: stimulus, distribution, supply audit.
+
+3. SmartBank Wallet
+   - Registrasi dan login user.
+   - KYC profile sederhana.
+   - Dashboard saldo.
+   - Riwayat transaksi.
+   - Transfer antar user.
+   - Bayar invoice/payment request.
+   - Ajukan pinjaman.
+   - Notifikasi status pembayaran.
+   - UI/UX boleh terinspirasi dari pola mobile banking: home saldo, mutasi, transfer, QR/payment, inbox, profile/security.
+
+4. Marketplace
+   - Seller CRUD produk.
+   - Buyer browse produk.
+   - Cart/checkout.
+   - Membuat order.
+   - Mengirim payment request ke CentralBank Core.
+   - Setelah settled, trigger LogistiKita.
+
+5. POS
+   - Kasir input item.
+   - Generate tagihan/invoice.
+   - Pembayaran via wallet/CentralBank Core.
+   - Simpan histori transaksi POS.
+
+6. SupplierHub
+   - Kelola stok bahan baku.
+   - UMKM order bahan.
+   - Supplier konfirmasi stok dan harga.
+   - Payment request ke CentralBank Core.
+   - Opsional trigger pengiriman bahan via LogistiKita.
+
+7. LogistiKita
+   - Request pengiriman.
+   - Hitung ongkir.
+   - Payment request ongkir.
+   - Tracking status pengiriman.
+
+8. UMKM Insight
+   - Read-only dari ledger CentralBank Core.
+   - Dashboard penjualan.
+   - Cashflow.
+   - Performa merchant/UMKM.
+   - Subscription premium 10.000/minggu.
+   - Tidak boleh mengubah saldo atau transaksi.
+
+======================================================================
+9. API CONTRACT REKOMENDASI
+======================================================================
+
+Semua response JSON gunakan format konsisten:
+{
+  "success": true,
+  "data": {},
+  "error": null,
+  "meta": {
+    "request_id": "...",
+    "timestamp": "..."
+  }
+}
+
+Error response:
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "INSUFFICIENT_BALANCE",
+    "message": "Saldo tidak mencukupi",
+    "details": {}
+  },
+  "meta": {
+    "request_id": "...",
+    "timestamp": "..."
+  }
+}
+
+Headers finansial wajib:
+- Authorization: Bearer <jwt>
+- X-Request-Id: unique id per request
+- Idempotency-Key: wajib untuk POST transaksi
+- X-Service-Name: untuk service internal
+
+9.1 Auth
+
+POST /api/v1/auth/register
+Request:
+{
+  "name": "Ugi",
+  "email": "ugi@example.com",
+  "password": "secret",
+  "phone": "08123456789"
+}
+Response:
+{
+  "user_id": "usr_...",
+  "wallet_id": "wal_...",
+  "initial_balance": 50000
+}
+
+POST /api/v1/auth/login
+Request:
+{
+  "email": "ugi@example.com",
+  "password": "secret"
+}
+Response:
+{
+  "access_token": "jwt",
+  "refresh_token": "jwt",
+  "expires_in": 3600
+}
+
+9.2 Wallet
+
+GET /api/v1/wallets/me/balance
+Response:
+{
+  "wallet_id": "wal_...",
+  "currency": "CBDC_IDR",
+  "available_balance": 50000,
+  "hold_balance": 0,
+  "daily_transaction_count": 0,
+  "daily_limit_count": 10
+}
+
+GET /api/v1/wallets/me/transactions
+Query: ?page=1&limit=20&type=PAYMENT
+Response: list transaksi dan ledger summary.
+
+9.3 Transfer
+
+POST /api/v1/transfers
+Request:
+{
+  "to_wallet_id": "wal_receiver",
+  "amount": 10000,
+  "note": "bayar makan"
+}
+Process:
+- Validate JWT.
+- Validate amount > 0.
+- Check cooldown and max daily transaction.
+- Quote bank fee/gateway fee/tax if applicable.
+- Check payer balance.
+- Write ledger atomically.
+Response:
+{
+  "transaction_id": "trx_...",
+  "status": "SETTLED",
+  "amount": 10000,
+  "fees": {
+    "bank_fee": 100,
+    "gateway_fee": 50,
+    "tax": 200
+  }
+}
+
+9.4 Payment Request
+
+POST /api/v1/payment-requests
+Request from app/service:
+{
+  "source_app": "MARKETPLACE",
+  "payer_wallet_id": "wal_buyer",
+  "payee_wallet_id": "wal_seller",
+  "gross_amount": 100000,
+  "description": "Checkout order ord_123",
+  "metadata": {
+    "order_id": "ord_123"
+  },
+  "expires_at": "2026-12-31T10:00:00Z"
+}
+Response:
+{
+  "payment_request_id": "payreq_...",
+  "status": "PENDING",
+  "amount_due": 105500,
+  "fee_breakdown": {}
+}
+
+POST /api/v1/payment-requests/{id}/pay
+Request:
+{
+  "wallet_pin": "123456"
+}
+Response:
+{
+  "transaction_id": "trx_...",
+  "status": "SETTLED"
+}
+
+9.5 Fee Quote
+
+POST /api/v1/fees/quote
+Request:
+{
+  "source_app": "MARKETPLACE",
+  "gross_amount": 100000,
+  "include_gateway_fee": true,
+  "include_bank_fee": true,
+  "include_tax": true
+}
+Response:
+{
+  "gross_amount": 100000,
+  "marketplace_fee": 2000,
+  "bank_fee": 1000,
+  "gateway_fee": 500,
+  "tax": 2000,
+  "total_debit": 105500,
+  "net_to_merchant": 98000
+}
+
+9.6 Loan
+
+POST /api/v1/loans/apply
+Request:
+{
+  "amount": 100000,
+  "purpose": "modal UMKM"
+}
+Validation:
+- amount <= 100000
+- outstanding loan user + amount <= 100000
+- reserve cukup
+Response:
+{
+  "loan_id": "loan_...",
+  "principal": 100000,
+  "interest": 10000,
+  "total_due": 110000,
+  "status": "DISBURSED"
+}
+
+POST /api/v1/loans/{loan_id}/repay
+Request:
+{
+  "amount": 110000
+}
+Response:
+{
+  "status": "PAID",
+  "remaining_due": 0
+}
+
+9.7 Marketplace Checkout
+
+POST /api/v1/marketplace/checkout
+Request:
+{
+  "buyer_wallet_id": "wal_buyer",
+  "items": [
+    {"product_id": "prd_1", "qty": 2}
+  ],
+  "shipping_address": "..."
+}
+Process:
+- Validate stock/product.
+- Calculate subtotal.
+- Create order PENDING_PAYMENT.
+- Create payment request to CentralBank Core.
+- Return payment_request_id.
+
+9.8 Analytics
+
+GET /api/v1/umkm-insight/dashboard
+Rules:
+- Read-only.
+- Use ledger settled transactions.
+- Aggregate by merchant, date, source_app, category.
+
+======================================================================
+10. DATABASE SCHEMA REKOMENDASI
+======================================================================
+
+Gunakan PostgreSQL jika memungkinkan. Semua amount integer.
+
+10.1 users
+- id PK
+- name
+- email unique
+- phone unique nullable
+- password_hash
+- role
+- kyc_tier: BASIC/VERIFIED
+- status: ACTIVE/SUSPENDED
+- created_at
+- updated_at
+
+10.2 wallet_accounts
+- id PK
+- user_id FK users.id nullable untuk system account
+- account_type
+- currency default CBDC_IDR
+- available_balance integer not null default 0
+- hold_balance integer not null default 0
+- status
+- created_at
+- updated_at
+
+10.3 monetary_policy_events
+- id PK
+- event_type: INITIAL_DISTRIBUTION/STIMULUS/ISSUANCE/BURN/RESERVE_ADJUSTMENT
+- amount
+- reason
+- created_by
+- created_at
+
+10.4 transactions
+- id PK
+- transaction_type: TRANSFER/PAYMENT/FEE/TAX/LOAN_DISBURSEMENT/LOAN_REPAYMENT/STIMULUS/REVERSAL
+- status
+- source_app
+- payer_wallet_id nullable
+- payee_wallet_id nullable
+- gross_amount
+- total_debit
+- fee_total
+- tax_total
+- idempotency_key unique
+- original_transaction_id nullable
+- metadata jsonb
+- created_at
+- settled_at nullable
+
+10.5 ledger_entries
+- id PK
+- transaction_id FK transactions.id
+- entry_no integer
+- account_id FK wallet_accounts.id
+- direction DEBIT/CREDIT
+- amount integer
+- currency
+- balance_after integer nullable
+- description
+- created_at
+
+Unique:
+- unique(transaction_id, entry_no)
+
+10.6 payment_requests
+- id PK
+- source_app
+- payer_wallet_id
+- payee_wallet_id
+- gross_amount
+- amount_due
+- status
+- description
+- metadata jsonb
+- expires_at
+- created_at
+- paid_transaction_id nullable
+
+10.7 fee_rules
+- id PK
+- source_app
+- fee_type
+- bps integer nullable
+- flat_amount integer nullable
+- min_amount nullable
+- max_amount nullable
+- destination_account_id
+- active boolean
+
+Seed fee rules:
+- MARKETPLACE_FEE: 200 bps
+- POS_FEE: 100 bps
+- SUPPLIER_FEE: 300 bps
+- LOGISTICS_FEE: 500 bps or flat 5000
+- BANK_FEE: 100 bps
+- GATEWAY_FEE: 50 bps
+- SYSTEM_TAX: 200 bps
+
+10.8 loans
+- id PK
+- borrower_wallet_id
+- principal
+- interest_amount
+- total_due
+- paid_amount
+- status: APPLIED/DISBURSED/PARTIAL_PAID/PAID/DEFAULTED/REJECTED
+- created_at
+- disbursed_at
+- due_at nullable
+
+10.9 products
+- id PK
+- seller_user_id
+- name
+- description
+- price
+- stock
+- status
+- created_at
+- updated_at
+
+10.10 orders
+- id PK
+- buyer_user_id
+- seller_user_id
+- subtotal
+- fee_total
+- tax_total
+- total_amount
+- status: PENDING_PAYMENT/PAID/SHIPPING/COMPLETED/CANCELLED
+- payment_request_id nullable
+- created_at
+
+10.11 order_items
+- id PK
+- order_id
+- product_id
+- qty
+- price_at_purchase
+
+10.12 pos_transactions
+- id PK
+- cashier_user_id
+- merchant_wallet_id
+- total
+- payment_request_id
+- status
+- created_at
+
+10.13 supplier_materials
+- id PK
+- supplier_user_id
+- name
+- price
+- stock
+- unit
+- created_at
+
+10.14 supplier_orders
+- id PK
+- buyer_user_id
+- supplier_user_id
+- total
+- status
+- payment_request_id
+- created_at
+
+10.15 shipments
+- id PK
+- source_app
+- ref_id
+- origin
+- destination
+- distance_km
+- shipping_fee
+- payment_request_id nullable
+- status: REQUESTED/PAID/PICKED_UP/IN_TRANSIT/DELIVERED/CANCELLED
+- created_at
+- updated_at
+
+10.16 audit_logs
+- id PK
+- actor_user_id nullable
+- service_name
+- action
+- target_type
+- target_id
+- request_id
+- ip_address nullable
+- reason_code nullable
+- metadata jsonb
+- created_at
+
+======================================================================
+12. PRIVACY, SECURITY, DAN COMPLIANCE DESIGN
+======================================================================
+
+Authentication:
+- Password wajib di-hash dengan bcrypt/argon2.
+- JWT access token pendek, refresh token lebih panjang.
+- Untuk transaksi wallet, gunakan PIN atau second factor sederhana.
+
+Authorization:
+- Role-based access control.
+- Object-level authorization untuk wallet, order, shipment, supplier order.
+
+Idempotency:
+- Semua POST transaksi harus menerima Idempotency-Key.
+- Idempotency-Key unik per user/service + endpoint + payload hash.
+
+Rate limit:
+- Login endpoint rate-limited.
+- Payment endpoint rate-limited.
+- Gateway bisa menerapkan cooldown 10-30 detik per user untuk transaksi finansial.
+
+Audit:
+- Log semua request finansial.
+- Log semua admin action.
+- Jangan log password/PIN/token penuh.
+
+Data privacy:
+- Merchant melihat status pembayaran, bukan seluruh identitas finansial pembeli.
+- Analytics memakai agregasi.
+- Admin audit detail transaksi harus memakai reason_code.
+
+CBDC safeguards:
+- Jangan membuat fitur freeze arbitrer tanpa proses audit. Jika diperlukan untuk prototype, beri status SUSPENDED pada wallet dengan reason dan audit log, bukan menghapus saldo.
+- Jangan membuat aturan uang yang membuat unit CBDC berbeda-beda per orang. Kontrol dilakukan di level payment/request/policy, bukan di token uang.
+- Pastikan semua uang tetap fungible.
+
+======================================================================
+13. NON-FUNCTIONAL REQUIREMENTS
+======================================================================
+
+Correctness:
+- Tidak ada transaksi settled tanpa ledger entries valid.
+- Tidak ada ledger imbalance.
+- Tidak ada saldo negatif tanpa account teknis yang diizinkan.
+- Total supply invariant harus bisa diaudit.
+
+Performance:
+- Untuk prototype, target transaksi sederhana < 500 ms lokal.
+- Gunakan index pada wallet_id, transaction_id, created_at, source_app.
+
+Reliability:
+- Gunakan database transaction.
+- Gunakan retry aman hanya dengan idempotency.
+- Jangan retry settlement tanpa idempotency key.
+
+Maintainability:
+- Pisahkan controller, service, repository, domain model.
+- Jangan taruh business logic di controller.
+- Buat unit test untuk fee, settlement, loan, supply invariant.
+
+Observability:
+- request_id di setiap log.
+- audit_logs untuk business events.
+- error code konsisten.
+
+======================================================================
+15. ACCEPTANCE CRITERIA
+======================================================================
+
+Minimum viable system dianggap selesai jika:
+1. User bisa register/login dan mendapat wallet.
+2. Wallet awal mendapat 50.000 selama distribusi awal tidak melebihi 2% supply.
+3. Central reserve tetap >= 98% pada fase awal.
+4. User bisa melihat saldo dan mutasi.
+5. User bisa transfer ke user lain.
+6. Marketplace bisa membuat product, checkout, payment request, dan settlement.
+7. POS bisa generate invoice dan menerima pembayaran.
+8. SupplierHub bisa membuat order bahan dan payment request.
+9. LogistiKita bisa membuat shipment dan biaya pengiriman.
+10. UMKM Insight bisa membaca ledger dan menampilkan summary.
+11. Semua transaksi settled punya ledger double-entry seimbang.
+12. Fee bank, gateway, marketplace/POS/supplier/logistik, dan pajak dihitung sesuai aturan.
+13. Loan maksimal 100.000/user dan bunga 10%.
+14. Cooldown dan max 10 transaksi harian diterapkan minimal pada endpoint transfer/payment.
+15. Tidak ada service selain CentralBank Core yang bisa mengubah saldo.
+
+======================================================================
+16. TEST CASE WAJIB
+======================================================================
+
+16.1 Auth & wallet
+- Register user baru -> wallet dibuat -> initial balance 50.000 jika supply policy mengizinkan.
+- Login berhasil -> JWT valid.
+- Password salah -> error UNAUTHORIZED.
+
+16.2 Ledger
+- Transfer 10.000 menghasilkan debit payer dan credit receiver + fee accounts.
+- Total debit sama dengan total credit.
+- Ledger tidak bisa dihapus/update melalui API.
+
+16.3 Supply
+- Total money supply tidak melebihi 1.000.000.000.
+- Distribusi awal tidak melewati 2% supply.
+- Reserve awal minimal 98%.
+
+16.4 Payment request
+- Marketplace checkout menciptakan payment request PENDING.
+- Pay payment request dengan saldo cukup -> SETTLED dan order PAID.
+- Pay payment request expired -> PAYMENT_EXPIRED.
+- Idempotency retry dengan key sama -> response transaksi sama, bukan transaksi baru.
+
+16.5 Fee
+- Marketplace amount 100.000 -> marketplace fee 2.000.
+- Bank fee 1% -> 1.000.
+- Gateway fee 0,5% -> 500.
+- Pajak 2% -> 2.000.
+- Gunakan pembulatan konsisten floor.
+
+16.6 Loan
+- Apply loan 100.000 -> approved jika belum punya outstanding loan dan reserve cukup.
+- Apply loan 101.000 -> LOAN_LIMIT_EXCEEDED.
+- Repay loan 110.000 -> status PAID.
+
+16.7 Limits
+- User transaksi > 10 kali/hari -> DAILY_LIMIT_EXCEEDED.
+- User transaksi dalam cooldown -> COOLDOWN_ACTIVE.
+
+16.8 Analytics
+- UMKM Insight GET dashboard tidak mengubah saldo atau ledger.
+- Analytics hanya menghitung transaksi SETTLED.
+
+======================================================================
+19. ROADMAP IMPLEMENTASI
+======================================================================
+
+Phase 1 - Foundation
+- Project setup.
+- Database migration.
+- Auth/JWT.
+- Users & wallet accounts.
+- System accounts seed.
+- Fee rules seed.
+
+Phase 2 - CentralBank Core
+- LedgerService.
+- Wallet balance lock.
+- Money supply invariant.
+- Transfer.
+- Fee quote.
+- Payment request.
+
+Phase 3 - Ecosystem Apps
+- Marketplace products/orders/checkout.
+- POS invoice/payment.
+- Supplier materials/orders/payment.
+- Logistics shipment/shipping fee/payment.
+
+Phase 4 - Monetary Features
+- Loans.
+- Stimulus weekly.
+- Reserve dashboard.
+- Admin monetary policy events.
+
+Phase 5 - Analytics & UI
+- UMKM Insight dashboard.
+- Wallet UI.
+- Admin audit dashboard.
+
+Phase 6 - Hardening
+- Tests.
+- Rate limit.
+- Security checks.
+- Seed demo data.
+- API documentation.
+
+======================================================================
+
+CATATAN UNTUK AGENT
+
+======================================================================
+
+Baca file ini bersama file context lain dalam folder yang sama. Jika ada konflik, prioritaskan aturan keuangan, ledger double-entry, atomic settlement, dan prinsip two-tier CBDC.

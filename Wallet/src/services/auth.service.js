@@ -44,7 +44,9 @@ export const authService = {
 
     const mapDbRole = (r) => {
       const upper = (r || '').toUpperCase();
-      if (['MERCHANT', 'SUPPLIER', 'ANALYTICS_VIEWER'].includes(upper)) return 'MERCHANT';
+      if (['MERCHANT', 'SUPPLIER'].includes(upper)) return 'MERCHANT';
+      if (['ANALYTICS_VIEWER', 'MANAGER'].includes(upper)) return 'MANAGER';
+      if (['CASHIER', 'POS_OPERATOR', 'TELLER'].includes(upper)) return 'TELLER';
       if (['CENTRAL_BANK_ADMIN', 'AUDITOR', 'SYSTEM_SERVICE'].includes(upper)) return upper;
       return 'WALLET_USER';
     };

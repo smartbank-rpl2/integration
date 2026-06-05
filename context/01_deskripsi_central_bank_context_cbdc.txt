@@ -1,0 +1,294 @@
+# 01_DESKRIPSI_CENTRAL_BANK_CONTEXT_CBDC
+
+Dokumen ini adalah context deskripsi khusus untuk domain CENTRAL BANK pada sistem simulasi CBDC CentralBank & Wallet Ecosystem.
+
+File ini dibuat untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, atau coding assistant lain agar memahami batas tanggung jawab, konsep domain, non-goal, dan prinsip arsitektur CentralBank Core sebelum menulis kode.
+
+Status:
+- Academic/learning prototype.
+- Bukan sistem finansial produksi.
+- Tidak terhubung dengan BI, BCA, bank sentral nyata, bank komersial nyata, atau payment network nyata.
+
+Sumber konsep:
+- Workbook Tugas Besar RPL 2 yang dilampirkan user.
+- Dokumen riset arsitektur sistem moneter terpusat/CBDC yang dilampirkan user.
+
+======================================================================
+1. IDENTITAS DOMAIN CENTRAL BANK
+======================================================================
+
+Nama modul:
+CentralBank Core
+
+Peran utama:
+CentralBank Core adalah otoritas moneter simulatif yang mengelola penerbitan, pemusnahan, peredaran, settlement, cadangan, ledger, audit, dan aturan keuangan CBDC.
+
+Dalam sistem ini, CentralBank Core harus diperlakukan sebagai single source of truth. Semua saldo final, transaksi settled, perubahan money supply, fee, pajak, loan disbursement, repayment, reversal, refund, dan settlement antar aplikasi wajib melewati CentralBank Core.
+
+CentralBank Core tidak boleh diperlakukan sebagai UI aplikasi pengguna biasa. Modul ini adalah core moneter, bukan mobile wallet.
+
+======================================================================
+2. TUJUAN CENTRAL BANK CORE
+======================================================================
+
+Tujuan utama:
+1. Mengelola total money supply CBDC dalam sistem simulasi.
+2. Mengelola reserve dan circulating supply.
+3. Mencatat semua mutasi saldo pada ledger append-only.
+4. Memvalidasi semua payment request dari Wallet, Marketplace, POS, SupplierHub, LogistiKita, dan API Gateway.
+5. Menjamin settlement bersifat atomic, konsisten, auditable, dan tidak menyebabkan double spending.
+6. Menyediakan governance, audit trail, dan kontrol risiko untuk admin/regulator simulatif.
+7. Menjadi lapisan final settlement yang tidak bisa dilewati oleh service lain.
+
+Tujuan desain:
+- Meniru pendekatan bank sentral secara konseptual, tetapi tetap aman untuk tugas akademik.
+- Menggunakan model two-tier agar wallet/provider tetap menjadi interface pengguna.
+- Menghindari desain monobank ekstrem yang membuat semua aspek user experience dan kredit ritel ditangani langsung oleh bank sentral.
+- Mempertahankan singleness of money dan fungibility CBDC.
+
+======================================================================
+3. BATAS TANGGUNG JAWAB CENTRAL BANK
+======================================================================
+
+CentralBank Core bertanggung jawab untuk:
+- Issuance/mint CBDC dari reserve atau supply authority.
+- Burn CBDC jika ada skenario pengurangan supply.
+- Transfer settlement antar wallet/account.
+- Validasi saldo cukup sebelum debit.
+- Ledger double-entry.
+- Account system seperti RESERVE_ACCOUNT, FEE_ACCOUNT, TAX_ACCOUNT, LOAN_POOL_ACCOUNT, SINK_ACCOUNT.
+- Perhitungan fee, tax, dan penalty simulatif sesuai aturan.
+- Loan disbursement dan repayment jika fitur pinjaman diaktifkan.
+- Audit log untuk setiap tindakan admin.
+- Freeze/unfreeze wallet hanya untuk skenario compliance yang jelas dan dicatat reason code.
+- Reporting supply, reserve, volume transaksi, velocity, dan settlement status.
+
+CentralBank Core tidak bertanggung jawab untuk:
+- Membuat UI mobile wallet harian.
+- Menyimpan password mentah user retail.
+- Mengelola katalog produk marketplace.
+- Mengelola stok POS atau logistik.
+- Menilai kelayakan usaha UMKM secara manual seperti analis bank nyata.
+- Mengklaim sebagai BI, BCA, atau institusi nyata.
+- Mengakses data pribadi pengguna melebihi kebutuhan audit simulatif.
+
+======================================================================
+4. PRINSIP TWO-TIER CBDC
+======================================================================
+
+CentralBank Core harus memakai two-tier model.
+
+Tier 1: CentralBank Core
+- Mengelola money supply.
+- Mengelola ledger master.
+- Mengelola settlement final.
+- Menetapkan aturan keuangan umum.
+- Menyediakan audit dan compliance hooks.
+
+Tier 2: Wallet/Provider/PJP simulatif
+- Mengelola registrasi user.
+- Mengelola login, session, dan UX.
+- Mengelola KYC ringan untuk prototype.
+- Mengirim payment request ke CentralBank Core.
+- Menampilkan saldo dan riwayat berdasarkan data yang sudah disettled.
+
+Aturan wajib:
+- Wallet tidak boleh mengubah saldo langsung di database CentralBank Core tanpa API/domain service resmi.
+- Marketplace/POS/SupplierHub/LogistiKita tidak boleh menulis saldo langsung.
+- Semua service hanya boleh membuat payment request, invoice, atau settlement instruction.
+- CentralBank Core yang menentukan apakah transaksi valid dan settled.
+
+======================================================================
+5. KONSEP MONETER UTAMA
+======================================================================
+
+CBDC:
+Representasi digital dari uang bank sentral dalam sistem simulasi. Gunakan integer minor unit, misalnya 1 rupiah = 1 unit minor jika ingin sederhana, atau 1 rupiah = 100 sen jika butuh presisi.
+
+Money Supply:
+Total CBDC yang boleh ada dalam sistem. Nilai awal yang direkomendasikan untuk tugas: 1.000.000.000.
+
+Reserve:
+Dana yang belum beredar dan masih berada pada account bank sentral. Distribusi awal harus menjaga mayoritas dana tetap berada di reserve, misalnya minimal 98 persen.
+
+Circulating Supply:
+CBDC yang sudah berada di account selain reserve, seperti wallet user, merchant, provider, fee account, tax account, atau loan account.
+
+Ledger:
+Catatan append-only untuk semua perubahan saldo. Tidak boleh update/delete transaksi settled. Jika salah, buat reversal transaction.
+
+Settlement:
+Finalisasi perpindahan uang setelah debit dan kredit tercatat seimbang.
+
+Double-entry:
+Setiap transaksi minimal memiliki satu debit dan satu kredit. Total debit harus sama dengan total kredit.
+
+======================================================================
+6. MODEL AKUN CENTRAL BANK
+======================================================================
+
+Minimal account yang harus ada:
+1. RESERVE_ACCOUNT
+   Menyimpan CBDC yang belum beredar.
+
+2. ISSUANCE_ACCOUNT
+   Account teknis untuk mencatat penerbitan awal atau distribusi dari reserve.
+
+3. FEE_ACCOUNT
+   Menampung fee transaksi simulatif.
+
+4. TAX_ACCOUNT
+   Menampung pajak simulatif dari transaksi tertentu.
+
+5. LOAN_POOL_ACCOUNT
+   Menampung dana untuk pencairan pinjaman UMKM jika fitur loan diaktifkan.
+
+6. SINK_ACCOUNT
+   Account untuk money sink jika sistem ingin memisahkan dana yang tidak boleh lagi digunakan sebelum burn.
+
+7. USER_WALLET_ACCOUNT
+   Account milik pengguna retail.
+
+8. MERCHANT_WALLET_ACCOUNT
+   Account milik UMKM/toko.
+
+9. PROVIDER_SETTLEMENT_ACCOUNT
+   Account milik provider atau service seperti marketplace/logistik jika perlu settlement internal.
+
+Aturan:
+- Semua account memiliki account_type.
+- Semua account memiliki status: ACTIVE, FROZEN, CLOSED.
+- Account frozen tidak boleh melakukan debit keluar, kecuali reversal oleh admin dengan reason code.
+- Account system hanya boleh diakses oleh role internal yang eksplisit.
+
+======================================================================
+7. PROGRAMMABLE PAYMENTS VS PROGRAMMABLE MONEY
+======================================================================
+
+Default desain sistem harus menggunakan programmable payments, bukan programmable money.
+
+Programmable payments:
+- Logika otomatis berada pada invoice, escrow, payment request, schedule, atau smart contract eksternal.
+- Uang yang berpindah tetap bernilai sama dan tidak membawa syarat diskriminatif.
+- Contoh: jika order marketplace sudah dikonfirmasi diterima, escrow membayar merchant.
+
+Programmable money:
+- Logika pembatasan tertanam pada unit uang itu sendiri.
+- Contoh: uang hanya bisa dipakai di wilayah tertentu, untuk kategori tertentu, atau kedaluwarsa secara otomatis.
+- Untuk retail prototype, pola ini harus dihindari sebagai default karena bisa merusak fungibility dan singleness of money.
+
+Aturan implementasi:
+- Jangan membuat field token_condition pada unit uang retail.
+- Jangan membuat saldo CBDC berbeda kualitas antar user.
+- Jika ada eksperimen demurrage, expiry, atau geofencing, pisahkan dalam modul riset dan beri label NON_DEFAULT_EXPERIMENT.
+
+======================================================================
+8. FITUR CENTRAL BANK YANG DISARANKAN
+======================================================================
+
+A. Dashboard moneter
+- Total money supply.
+- Reserve balance.
+- Circulating supply.
+- Total settled transaction volume.
+- Total fee/tax collected.
+- Transaction velocity.
+- Failed transaction count.
+- Frozen wallet count.
+
+B. Issuance dan distribution
+- Admin membuat distribution batch.
+- Dana didebit dari RESERVE_ACCOUNT.
+- Dana dikreditkan ke wallet/provider/account tujuan.
+- Ledger mencatat semua entri.
+
+C. Settlement engine
+- Menerima payment request.
+- Validasi idempotency key.
+- Validasi account status.
+- Validasi saldo cukup.
+- Hitung fee/tax.
+- Tulis ledger entries dalam database transaction.
+- Update balance secara atomic.
+- Return settlement status.
+
+D. Compliance dan audit
+- Audit log semua aksi admin.
+- Reason code wajib untuk freeze, unfreeze, reversal, manual adjustment.
+- Role-based access control.
+- Data audit sensitif tidak ditampilkan ke user biasa.
+
+E. Reversal dan refund
+- Tidak boleh menghapus ledger lama.
+- Buat transaksi baru bertipe REVERSAL atau REFUND.
+- Hubungkan ke original_transaction_id.
+
+F. Reporting
+- Export laporan simulatif.
+- Query ledger read-only.
+- Aggregate per hari, per service, per merchant, per account type.
+
+======================================================================
+9. ROLE DALAM CENTRAL BANK
+======================================================================
+
+SUPER_ADMIN:
+- Akses konfigurasi sistem.
+- Membuat admin lain.
+- Tidak boleh melakukan settlement manual tanpa audit.
+
+CENTRAL_BANK_OPERATOR:
+- Menjalankan issuance, distribution, dan operational monitoring.
+
+AUDITOR:
+- Read-only ke ledger, audit log, laporan supply, dan settlement.
+
+COMPLIANCE_OFFICER:
+- Freeze/unfreeze wallet dengan reason code.
+- Melihat alert transaksi mencurigakan.
+
+SYSTEM_SERVICE:
+- Role machine-to-machine untuk API Gateway dan service internal.
+
+Aturan:
+- Tidak ada role yang boleh menghapus ledger.
+- Semua aksi sensitif harus tercatat actor_id, timestamp, reason_code, request_id, dan IP/device metadata jika tersedia.
+
+======================================================================
+10. NON-GOAL DAN LARANGAN
+======================================================================
+
+CentralBank Core tidak boleh:
+1. Membuat saldo negatif kecuali account teknis yang secara eksplisit diperbolehkan untuk simulasi dan diaudit.
+2. Menerima transaksi tanpa idempotency key.
+3. Menulis ledger yang debit dan kreditnya tidak seimbang.
+4. Mengizinkan service selain CentralBank Core menciptakan uang.
+5. Menghapus transaksi settled.
+6. Mengubah saldo tanpa ledger entry.
+7. Menyimpan data pribadi user retail secara berlebihan.
+8. Membuat programmable money retail sebagai fitur default.
+9. Menghilangkan opsi cash/offline concept dalam narasi akademik jika membahas risiko CBDC.
+10. Mengklaim terhubung dengan BI, BCA, atau bank nyata.
+
+======================================================================
+11. INSTRUKSI KHUSUS UNTUK AGENT CODING
+======================================================================
+
+Saat mengerjakan modul CentralBank Core, agent harus memprioritaskan:
+1. Domain model sebelum UI.
+2. Ledger dan balance consistency sebelum fitur tambahan.
+3. Database transaction dan row locking untuk settlement.
+4. Idempotency untuk semua endpoint finansial.
+5. Unit test dan integration test untuk transfer, fee, tax, reversal, dan insufficient balance.
+6. Auditability untuk admin action.
+7. API contract yang eksplisit dan stabil.
+
+Jangan membuat mock saldo langsung di frontend sebagai sumber kebenaran. Frontend hanya menampilkan hasil query dari backend yang mengambil saldo dari CentralBank Core.
+
+======================================================================
+12. RINGKASAN CENTRAL BANK UNTUK PROMPT AGENT
+======================================================================
+
+Gunakan ringkasan ini ketika memberi instruksi singkat ke agent coding:
+
+"Bangun CentralBank Core sebagai core moneter simulasi CBDC. Modul ini adalah single source of truth untuk money supply, reserve, saldo wallet, ledger double-entry, settlement, fee, tax, loan, reversal, audit, dan compliance. Gunakan two-tier CBDC: wallet/provider hanya membuat payment request, sedangkan CentralBank Core yang memvalidasi dan menyelesaikan transaksi. Semua mutasi saldo wajib atomic, idempotent, auditable, dan tercatat append-only. Jangan membuat programmable money retail sebagai default; gunakan programmable payments. Jangan mengklaim integrasi dengan BI, BCA, atau institusi nyata."

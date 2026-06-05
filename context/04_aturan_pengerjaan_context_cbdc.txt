@@ -1,0 +1,189 @@
+# 04_ATURAN_PENGERJAAN_CONTEXT_CBDC
+
+Dokumen ini adalah bagian terpisah dari context engineering sistem CBDC CentralBank & Wallet Ecosystem untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, atau coding assistant lain.
+
+Tujuan file: Menjadi instruksi kerja untuk agentic AI coding saat mengerjakan fitur, node sistem, kontrak input-proses-output, prompt, dan checklist pengumpulan.
+
+Status: academic/learning prototype, bukan sistem finansial produksi. Jangan mengklaim integrasi dengan BI, BCA, atau bank nyata. Gunakan hanya sebagai rancangan simulasi.
+
+Sumber konsep: workbook Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC yang dilampirkan user.
+
+======================================================================
+
+GLOBAL CONTEXT
+
+======================================================================
+
+# CONTEXT-CBDC-CENTRAL-BANK-WALLET-AGENTIC-AI.txt
+
+Dokumen ini adalah context engineering untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, Devin-like agent, atau coding assistant lain. Gunakan file ini sebagai sumber utama ketika membangun sistem simulasi CBDC, bank sentral, wallet retail bergaya aplikasi bank komersial modern, dan ekosistem UMKM terintegrasi.
+
+Status: academic/learning prototype, bukan sistem finansial produksi.
+Bahasa utama implementasi: bebas, tetapi contoh struktur disarankan memakai TypeScript/NestJS atau Laravel/Spring Boot selama prinsip domain dan kontrak API di bawah tetap dipatuhi.
+Sumber konsep: workbook kebutuhan aplikasi Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC.
+
+======================================================================
+5. ATURAN PENGERJAAN DARI WORKBOOK
+======================================================================
+
+Aturan wajib implementasi:
+1. Setiap fitur = 1 node sistem
+   - Setiap fitur dalam kebutuhan fungsional harus direpresentasikan sebagai unit implementasi nyata: module, controller, service, route, dan test.
+   - Contoh: fitur checkout menjadi node Checkout di Marketplace.
+
+2. Alur = Input -> Proses -> Output
+   - Semua fitur mengikuti pola IPO.
+   - Input divalidasi.
+   - Proses menjalankan business logic.
+   - Output berupa JSON response yang konsisten.
+
+3. Semua output transaksi = payment request
+   - Fitur yang menghasilkan pembayaran tidak boleh langsung mengubah saldo.
+   - Buat payment request ke CentralBank Core.
+
+4. CentralBank Core sebagai pusat kontrol
+   - Semua transaksi keuangan hanya diproses oleh CentralBank Core.
+   - Aplikasi lain tidak boleh update saldo langsung.
+
+5. Wajib melalui API Gateway
+   - Semua komunikasi antar aplikasi melewati Gateway/Integrator.
+   - Gateway menangani security, JWT, logging, dan routing.
+
+6. Validasi dan logging wajib
+   - Request body, params, user identity, amount, dan idempotency key harus divalidasi.
+   - Semua request finansial dicatat di audit log.
+
+7. Analytics hanya membaca data
+   - UMKM Insight tidak boleh mengubah transaksi/saldo.
+
+8. Tidak ada uang dibuat bebas
+   - Uang hanya berasal dari CentralBank Core melalui issuance/stimulus/loan yang tercatat.
+
+9. Semua layanan berbayar
+   - Setiap layanan relevan memiliki fee/biaya sesuai aturan keuangan.
+
+10. Setiap endpoint = kontrak sistem
+   - Endpoint harus jelas: method, URL, request, response, error code.
+
+======================================================================
+14. DEVELOPMENT RULES UNTUK CODING AGENT
+======================================================================
+
+Prioritas implementasi:
+1. Setup project dan database.
+2. Implement users/auth/JWT.
+3. Implement wallet_accounts dan system accounts seed.
+4. Implement ledger engine double-entry.
+5. Implement CentralBank Core settlement.
+6. Implement fee_rules dan fee quote.
+7. Implement payment request lifecycle.
+8. Implement transfer antar user.
+9. Implement loan.
+10. Implement Marketplace checkout.
+11. Implement POS invoice/payment.
+12. Implement SupplierHub.
+13. Implement LogistiKita.
+14. Implement UMKM Insight read-only dashboard.
+15. Implement UI wallet/dashboard jika diminta.
+
+Coding constraints:
+- Gunakan decimal/integer, bukan float.
+- Gunakan enum untuk status dan account type.
+- Semua amount harus divalidasi: integer, > 0, max reasonable.
+- Semua endpoint finansial harus punya test.
+- Semua mutasi saldo harus memanggil LedgerService/CentralBankSettlementService.
+- Jangan update wallet balance langsung dari Marketplace/POS/SupplierHub/LogistiKita.
+- Jangan bypass Gateway pada integration tests kecuali unit test internal.
+
+Naming convention rekomendasi:
+- TransactionService
+- LedgerService
+- WalletService
+- FeeService
+- PaymentRequestService
+- MonetaryPolicyService
+- LoanService
+- AuditLogService
+- MarketplaceCheckoutService
+- PosBillingService
+- SupplierOrderService
+- LogisticsService
+- AnalyticsService
+
+Error codes:
+- VALIDATION_ERROR
+- UNAUTHORIZED
+- FORBIDDEN
+- NOT_FOUND
+- IDEMPOTENCY_CONFLICT
+- INSUFFICIENT_BALANCE
+- DAILY_LIMIT_EXCEEDED
+- COOLDOWN_ACTIVE
+- PAYMENT_EXPIRED
+- INVALID_PAYMENT_STATUS
+- LEDGER_IMBALANCE
+- SUPPLY_LIMIT_EXCEEDED
+- RESERVE_LIMIT_VIOLATION
+- LOAN_LIMIT_EXCEEDED
+- KYC_REQUIRED
+
+======================================================================
+20. PROMPT KHUSUS UNTUK AGENT CODING
+======================================================================
+
+Gunakan prompt ini saat meminta Codex/Antigravity mengerjakan kode:
+
+"Baca file CONTEXT-CBDC-CENTRAL-BANK-WALLET-AGENTIC-AI.txt. Bangun sistem sesuai domain CBDC CentralBank & Wallet Ecosystem. Prioritaskan CentralBank Core, ledger double-entry, wallet, auth, fee rules, dan payment request. Jangan membuat perubahan saldo di modul Marketplace/POS/SupplierHub/LogistiKita; semua mutasi saldo harus melalui CentralBankSettlementService. Gunakan integer amount, database transaction, idempotency key, dan test untuk ledger balance. Implementasikan acceptance criteria minimum sebelum UI polish."
+
+Jika agent menemukan project existing:
+- Jangan rewrite total tanpa alasan.
+- Pahami struktur project.
+- Tambahkan modul sesuai boundary.
+- Jaga backward compatibility endpoint jika sudah ada.
+- Tambahkan migration dan tests.
+
+Jika agent membuat project baru:
+- Pilih stack backend modern.
+- Gunakan PostgreSQL.
+- Buat README, .env.example, seed script, migration, dan test.
+- Buat OpenAPI/Swagger jika memungkinkan.
+
+======================================================================
+21. CHECKLIST FINAL UNTUK PENGUMPULAN
+======================================================================
+
+Dokumentasi minimal:
+- Deskripsi aplikasi dan peran tiap service.
+- Use case/fitur utama.
+- Diagram arsitektur sederhana.
+- Flow IPO tiap fitur utama.
+- API endpoint: method, URL, request, response.
+- Integrasi CentralBank Core.
+- Desain database dan relasi.
+- Mekanisme transaksi dan fee.
+- UI sederhana/mockup/screenshot.
+- Skenario pengujian.
+- Kendala dan solusi.
+- Pembagian tugas tim.
+
+Demo minimal:
+1. Register dua user.
+2. Cek saldo awal.
+3. Transfer user A ke user B.
+4. Checkout marketplace.
+5. Bayar payment request.
+6. Lihat ledger dan saldo berubah.
+7. Coba saldo tidak cukup.
+8. Coba pinjaman 100.000.
+9. Coba transaksi ke-11 dalam sehari ditolak.
+10. Buka UMKM Insight dan lihat data transaksi terbaca.
+
+End of context.
+
+======================================================================
+
+CATATAN UNTUK AGENT
+
+======================================================================
+
+Baca file ini bersama file context lain dalam folder yang sama. Jika ada konflik, prioritaskan aturan keuangan, ledger double-entry, atomic settlement, dan prinsip two-tier CBDC.

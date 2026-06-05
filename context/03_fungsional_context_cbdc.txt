@@ -1,0 +1,361 @@
+# 03_FUNGSIONAL_CONTEXT_CBDC
+
+Dokumen ini adalah bagian terpisah dari context engineering sistem CBDC CentralBank & Wallet Ecosystem untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, atau coding assistant lain.
+
+Tujuan file: Menjelaskan role, akses, kebutuhan fungsional per aplikasi, dan rekomendasi UI/UX wallet.
+
+Status: academic/learning prototype, bukan sistem finansial produksi. Jangan mengklaim integrasi dengan BI, BCA, atau bank nyata. Gunakan hanya sebagai rancangan simulasi.
+
+Sumber konsep: workbook Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC yang dilampirkan user.
+
+======================================================================
+
+GLOBAL CONTEXT
+
+======================================================================
+
+# CONTEXT-CBDC-CENTRAL-BANK-WALLET-AGENTIC-AI.txt
+
+Dokumen ini adalah context engineering untuk agentic AI coding seperti Codex, Antigravity, Cursor Agent, Devin-like agent, atau coding assistant lain. Gunakan file ini sebagai sumber utama ketika membangun sistem simulasi CBDC, bank sentral, wallet retail bergaya aplikasi bank komersial modern, dan ekosistem UMKM terintegrasi.
+
+Status: academic/learning prototype, bukan sistem finansial produksi.
+Bahasa utama implementasi: bebas, tetapi contoh struktur disarankan memakai TypeScript/NestJS atau Laravel/Spring Boot selama prinsip domain dan kontrak API di bawah tetap dipatuhi.
+Sumber konsep: workbook kebutuhan aplikasi Tugas Besar RPL 2 dan dokumen riset arsitektur sistem moneter terpusat/CBDC.
+
+======================================================================
+4. ROLE DAN AKSES
+======================================================================
+
+Roles minimum:
+1. CENTRAL_BANK_ADMIN
+   - Mengatur supply policy.
+   - Melihat audit ledger agregat.
+   - Menjalankan stimulus.
+   - Approve/reject loan policy.
+   - Tidak boleh mengedit ledger historis.
+
+2. WALLET_USER
+   - Registrasi/login.
+   - Lihat saldo dan mutasi.
+   - Transfer.
+   - Membayar payment request.
+   - Ajukan pinjaman.
+
+3. MERCHANT/SELLER
+   - Kelola produk marketplace.
+   - Melihat order dan settlement.
+   - Melihat dashboard merchant.
+
+4. CASHIER/POS_OPERATOR
+   - Input transaksi POS.
+   - Generate invoice.
+   - Cek status pembayaran.
+
+5. SUPPLIER
+   - Kelola bahan baku.
+   - Konfirmasi stok.
+   - Terima pembayaran.
+
+6. LOGISTICS_OPERATOR
+   - Buat shipment.
+   - Update status pengiriman.
+   - Generate biaya logistik.
+
+7. ANALYTICS_VIEWER
+   - Akses UMKM Insight.
+   - Read-only.
+
+8. SYSTEM_SERVICE
+   - Service-to-service authentication.
+   - Hanya lewat API Gateway.
+
+Access rules:
+- Semua endpoint finansial harus memerlukan JWT valid.
+- Service-to-service request harus punya service token atau signed header internal.
+- User hanya boleh membaca data wallet miliknya sendiri kecuali role admin/auditor.
+- Analytics hanya membaca data yang sudah dimasking/agregat bila memungkinkan.
+- Admin audit harus mencatat reason_code saat membuka detail transaksi individu.
+
+======================================================================
+8. KEBUTUHAN FUNGSIONAL PER APLIKASI
+======================================================================
+
+8.1 CentralBank Core / SmartBank
+
+Deskripsi:
+CentralBank Core adalah inti sistem ekonomi. Semua pembayaran dari aplikasi lain harus diproses melalui CentralBank Core. Sistem mengelola saldo, transfer, pembayaran, pajak/fee, pinjaman, pencatatan ledger, dan API pembayaran/query saldo.
+
+Tanggung jawab utama:
+- Validasi saldo.
+- Proses debit/kredit.
+- Distribusi dana.
+- Potong pajak/fee.
+- Kelola pinjaman.
+- Catat ledger.
+- Expose API pembayaran, transfer, saldo, riwayat, loan.
+
+Fitur:
+1. Registrasi dan login user
+   - User membuat akun dan login memakai JWT authentication.
+   - Endpoint legacy workbook: /smartbank/registrasi_&_login_user
+   - Endpoint rekomendasi: POST /api/v1/auth/register, POST /api/v1/auth/login
+
+2. Manajemen saldo
+   - Menampilkan saldo dan riwayat transaksi.
+   - Endpoint workbook: /smartbank/manajemen_saldo
+   - Endpoint rekomendasi: GET /api/v1/wallets/me/balance, GET /api/v1/wallets/me/transactions
+
+3. Transfer antar user
+   - Transfer saldo antar user.
+   - Endpoint workbook: /smartbank/transfer_antar_user
+   - Endpoint rekomendasi: POST /api/v1/transfers
+
+4. Pembayaran transaksi
+   - Memproses pembayaran dari semua aplikasi.
+   - Endpoint workbook: /smartbank/pembayaran_transaksi
+   - Endpoint rekomendasi: POST /api/v1/payments/settle
+
+5. Pinjaman/loan
+   - User dapat mengajukan pinjaman.
+   - Limit 100.000/user, bunga 10%.
+   - Endpoint workbook: /smartbank/pinjaman_(loan)
+   - Endpoint rekomendasi: POST /api/v1/loans/apply, POST /api/v1/loans/{id}/repay
+
+6. Pajak dan biaya
+   - Memotong pajak transaksi.
+   - Endpoint workbook: /smartbank/pajak_&_biaya
+   - Endpoint rekomendasi: GET /api/v1/fees/quote, POST /api/v1/fees/apply
+
+7. Ledger transaksi
+   - Mencatat seluruh transaksi.
+   - Endpoint workbook: /smartbank/ledger_transaksi
+   - Endpoint rekomendasi: GET /api/v1/ledger, GET /api/v1/transactions/{id}
+
+8. Biaya layanan bank
+   - Potongan biaya setiap transaksi sebagai fee bank.
+   - Endpoint workbook: /smartbank/biaya_layanan_bank
+
+8.2 SmartBank Wallet Retail
+
+Tambahan untuk wallet bergaya bank komersial:
+- Home dashboard: saldo CBDC, shortcut transfer, bayar, riwayat.
+- KYC tier: basic, verified.
+- Security: PIN transaksi, password hashing, JWT refresh token, device session.
+- Transfer ke user lain memakai user handle/phone/email/wallet id.
+- Payment request scan/manual input.
+- Loan menu.
+- Statement/mutasi.
+- Notification inbox.
+- Profile dan limit harian.
+
+Catatan BCA-like:
+Gunakan inspirasi high-level berupa UX bank besar yang rapi, aman, dan familiar. Jangan menggunakan logo, warna, nama produk, atau klaim integrasi BCA.
+
+8.3 Marketplace / PasarKita
+
+Deskripsi:
+Marketplace menyediakan kanal jual beli produk UMKM. Mengelola katalog, browsing, checkout, order, dan payment request ke CentralBank Core.
+
+Fitur:
+1. Manajemen produk
+   - Seller dapat menambah/edit produk.
+   - Endpoint workbook: /marketplace/manajemen_produk
+   - Rekomendasi: POST /api/v1/marketplace/products, PATCH /api/v1/marketplace/products/{id}
+
+2. Browse produk
+   - User melihat produk.
+   - Endpoint workbook: /marketplace/browse_produk
+   - Rekomendasi: GET /api/v1/marketplace/products
+
+3. Checkout
+   - User melakukan pembelian.
+   - Endpoint workbook: /marketplace/checkout
+   - Rekomendasi: POST /api/v1/marketplace/checkout
+   - Harus membuat order dan payment request.
+
+4. Integrasi pembayaran
+   - Kirim request ke CentralBank Core.
+   - Endpoint workbook: /marketplace/integrasi_pembayaran
+   - Rekomendasi: POST /api/v1/payment-requests
+
+5. Status order
+   - Melihat status pesanan.
+   - Endpoint workbook: /marketplace/status_order
+   - Rekomendasi: GET /api/v1/marketplace/orders/{id}
+
+6. Biaya layanan marketplace
+   - Fee marketplace 2%.
+   - Endpoint workbook: /marketplace/biaya_layanan_marketplace
+
+8.4 POS / WarungPOS
+
+Deskripsi:
+POS mensimulasikan transaksi offline di toko fisik. Kasir input item, sistem menghitung total + fee POS, lalu membuat payment request.
+
+Fitur:
+1. Input transaksi
+   - Kasir input barang.
+   - Endpoint workbook: /pos/input_transaksi
+
+2. Generate tagihan
+   - Hitung total belanja.
+   - Endpoint workbook: /pos/generate_tagihan
+
+3. Pembayaran
+   - Integrasi ke CentralBank Core.
+   - Endpoint workbook: /pos/pembayaran
+
+4. Riwayat transaksi
+   - Simpan histori transaksi POS.
+   - Endpoint workbook: /pos/riwayat_transaksi
+
+5. Biaya layanan POS
+   - Fee POS 1%.
+   - Endpoint workbook: /pos/biaya_layanan_pos
+
+8.5 SupplierHub
+
+Deskripsi:
+SupplierHub mengelola hubungan UMKM dengan pemasok bahan baku. UMKM memesan bahan, supplier konfirmasi stok/harga, lalu sistem mengirim payment request.
+
+Fitur:
+1. Manajemen bahan baku
+   - Kelola stok bahan.
+   - Endpoint: /supplierhub/manajemen_bahan_baku
+
+2. Order bahan
+   - UMKM memesan bahan.
+   - Endpoint: /supplierhub/order_bahan
+
+3. Konfirmasi stok
+   - Supplier konfirmasi stok.
+   - Endpoint: /supplierhub/konfirmasi_stok
+
+4. Pembayaran
+   - Integrasi ke CentralBank Core.
+   - Endpoint: /supplierhub/pembayaran
+
+5. Biaya layanan supplier
+   - Fee supplier 3%.
+   - Endpoint: /supplierhub/biaya_layanan_supplier
+
+8.6 LogistiKita
+
+Deskripsi:
+LogistiKita mengelola pengiriman barang. Setelah transaksi berhasil, aplikasi menghitung ongkir, meminta pembayaran ongkir, dan update status.
+
+Fitur:
+1. Request pengiriman
+   - Menerima permintaan pengiriman.
+   - Endpoint: /logistikita/request_pengiriman
+
+2. Tracking status
+   - Update status pengiriman.
+   - Endpoint: /logistikita/tracking_status
+
+3. Biaya pengiriman
+   - Hitung ongkir.
+   - Endpoint: /logistikita/biaya_pengiriman
+
+4. Pembayaran logistik
+   - Pembayaran ongkir via CentralBank Core.
+   - Endpoint: /logistikita/pembayaran_logistik
+
+5. Biaya layanan logistik
+   - Fee layanan logistik.
+   - Endpoint: /logistikita/biaya_layanan_logistik
+
+8.7 UMKM Insight
+
+Deskripsi:
+UMKM Insight menyediakan analitik berbasis data transaksi dari CentralBank Core. Aplikasi bersifat read-only.
+
+Fitur:
+1. Ambil data transaksi
+   - Mengambil data dari CentralBank Core.
+   - Endpoint: /umkm_insight/ambil_data_transaksi
+
+2. Analisis penjualan
+   - Mengolah data transaksi.
+   - Endpoint: /umkm_insight/analisis_penjualan
+
+3. Dashboard
+   - Visualisasi data.
+   - Endpoint: /umkm_insight/dashboard
+
+4. Biaya akses analytics
+   - User membayar akses dashboard premium.
+   - Endpoint: /umkm_insight/biaya_akses_analytics
+
+Rules:
+- UMKM Insight tidak boleh memiliki endpoint mutasi saldo.
+- Query analytics harus read-only.
+- Data sensitif user harus dimasking kecuali pemilik data.
+
+8.8 API Gateway / Integrator
+
+Deskripsi:
+API Gateway menjadi pintu masuk semua request antar aplikasi. Bertanggung jawab untuk routing, validasi token, logging, dan standarisasi komunikasi.
+
+Fitur:
+1. Routing API
+   - Endpoint workbook: /integrator/routing_api
+
+2. Validasi request
+   - Validasi token.
+   - Endpoint workbook: /integrator/validasi_request
+
+3. Logging
+   - Mencatat request.
+   - Endpoint workbook: /integrator/logging
+
+4. Biaya layanan integrasi
+   - Fee gateway 0,5%.
+   - Endpoint workbook: /integrator/biaya_layanan_integrasi
+
+======================================================================
+17. UI/UX WALLET REKOMENDASI
+======================================================================
+
+Tampilan wallet retail:
+1. Login/Register
+2. Home
+   - Nama user.
+   - Saldo CBDC.
+   - Tombol Transfer, Bayar, Riwayat, Pinjaman.
+   - Ringkasan transaksi terbaru.
+3. Transfer
+   - Input wallet tujuan.
+   - Amount.
+   - Catatan.
+   - Konfirmasi fee.
+   - PIN transaksi.
+4. Bayar Payment Request
+   - Input/scan payment_request_id.
+   - Detail merchant/order.
+   - Fee breakdown.
+   - Konfirmasi PIN.
+5. Riwayat
+   - Filter tanggal, tipe, status.
+6. Pinjaman
+   - Limit tersedia.
+   - Ajukan pinjaman.
+   - Status repayment.
+7. Insight mini
+   - Untuk merchant, ringkasan pendapatan.
+8. Profile & Security
+   - KYC tier.
+   - Ganti PIN/password.
+   - Device/session.
+
+Style:
+- Clean, profesional, high-trust banking.
+- Hindari klaim BCA. Boleh memakai istilah generic: rekening, mutasi, transfer, pembayaran, tagihan, pinjaman.
+
+======================================================================
+
+CATATAN UNTUK AGENT
+
+======================================================================
+
+Baca file ini bersama file context lain dalam folder yang sama. Jika ada konflik, prioritaskan aturan keuangan, ledger double-entry, atomic settlement, dan prinsip two-tier CBDC.
