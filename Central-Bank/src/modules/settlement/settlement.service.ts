@@ -341,8 +341,8 @@ export class SettlementService {
     );
   }
 
-  async settleLoanDisbursement(input: {
-    borrowerWalletId: string;
+  async settleTopUp(input: {
+    walletId: string;
     amount: bigint;
     idempotency: IdempotencyInput;
     requestId: string;
@@ -352,64 +352,159 @@ export class SettlementService {
       this.prisma.$transaction(async (tx) => {
         const idem = await this.idempotency.start(tx, input.idempotency);
         if (idem.replay) return idem.response;
-        this.money.assertPositive(input.amount);
-        if (input.amount > 100000n) throw new AppError(ErrorCode.LOAN_LIMIT_EXCEEDED, 'Limit pinjaman maksimal 100000');
-        const outstanding = await tx.loan.aggregate({
-          where: { borrowerWalletId: input.borrowerWalletId, status: { in: ['DISBURSED', 'PARTIAL_PAID'] } },
-          _sum: { principal: true, paidAmount: true },
-        });
-        const currentOutstanding = (outstanding._sum.principal ?? 0n) - (outstanding._sum.paidAmount ?? 0n);
-        if (currentOutstanding + input.amount > 100000n) {
-          throw new AppError(ErrorCode.LOAN_LIMIT_EXCEEDED, 'Outstanding loan melebihi limit');
-        }
-        const loanPool = await tx.walletAccount.findUniqueOrThrow({ where: { accountCode: 'LOAN_POOL_ACCOUNT' } });
-        const accounts = await this.lockAccounts(tx, [loanPool.id, input.borrowerWalletId]);
-        const lockedLoanPool = accounts.get(loanPool.id) ?? loanPool;
-        this.ensureDebitAllowed(lockedLoanPool, input.amount);
-        const interest = this.money.tenPercent(input.amount);
-        const totalDue = input.amount + interest;
+        
+        const reserve = await tx.walletAccount.findUniqueOrThrow({ where: { accountCode: 'CENTRAL_RESERVE' } });
+        const wallet = await tx.walletAccount.findUniqueOrThrow({ where: { id: input.walletId } });
+        
+        await this.lockAccounts(tx, [reserve.id, wallet.id]);
+        this.ensureDebitAllowed(reserve, input.amount);
+        
         const transactionId = randomUUID();
-        const loanId = randomUUID();
-        await tx.loan.create({
+        const entries: LedgerPost[] = [
+          { accountId: reserve.id, direction: 'DEBIT', amount: input.amount, description: 'Top-up from reserve' },
+          { accountId: wallet.id, direction: 'CREDIT', amount: input.amount, description: 'Top-up wallet' },
+        ];
+        
+        await tx.transaction.create({
           data: {
-            id: loanId,
-            borrowerWalletId: input.borrowerWalletId,
-            principal: input.amount,
-            interestAmount: interest,
-            totalDue,
-            paidAmount: 0n,
-            status: 'DISBURSED',
-            disbursedAt: new Date(),
+            id: transactionId,
+            transactionType: 'INITIAL_DISTRIBUTION',
+            status: 'SETTLED',
+            sourceApp: 'CENTRAL_BANK_TELLER',
+            payerWalletId: reserve.id,
+            payeeWalletId: wallet.id,
+            grossAmount: input.amount,
+            totalDebit: input.amount,
+            idempotencyKey: input.idempotency.key,
+            settledAt: new Date(),
           },
         });
+        
+        await this.ledger.post(tx, {
+          transactionId,
+          entries: await this.applyEntries(tx, entries),
+        });
+        
+        const response = { transaction_id: transactionId, status: 'SETTLED', amount: input.amount };
+        await this.idempotency.complete(tx, { ...input.idempotency, responseBody: asJson(response) });
+        return response;
+      }),
+    );
+  }
+
+  async settleWithdrawal(input: {
+    walletId: string;
+    amount: bigint;
+    idempotency: IdempotencyInput;
+    requestId: string;
+    actorUserId: string;
+  }) {
+    return this.withDeadlockRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        const idem = await this.idempotency.start(tx, input.idempotency);
+        if (idem.replay) return idem.response;
+        
+        const reserve = await tx.walletAccount.findUniqueOrThrow({ where: { accountCode: 'CENTRAL_RESERVE' } });
+        const wallet = await tx.walletAccount.findUniqueOrThrow({ where: { id: input.walletId } });
+        
+        await this.lockAccounts(tx, [wallet.id, reserve.id]);
+        this.ensureDebitAllowed(wallet, input.amount);
+        
+        const transactionId = randomUUID();
+        const entries: LedgerPost[] = [
+          { accountId: wallet.id, direction: 'DEBIT', amount: input.amount, description: 'Withdrawal from wallet' },
+          { accountId: reserve.id, direction: 'CREDIT', amount: input.amount, description: 'Withdrawal to reserve' },
+        ];
+        
+        await tx.transaction.create({
+          data: {
+            id: transactionId,
+            transactionType: 'TRANSFER',
+            status: 'SETTLED',
+            sourceApp: 'CENTRAL_BANK_TELLER',
+            payerWalletId: wallet.id,
+            payeeWalletId: reserve.id,
+            grossAmount: input.amount,
+            totalDebit: input.amount,
+            idempotencyKey: input.idempotency.key,
+            settledAt: new Date(),
+          },
+        });
+        
+        await this.ledger.post(tx, {
+          transactionId,
+          entries: await this.applyEntries(tx, entries),
+        });
+        
+        const response = { transaction_id: transactionId, status: 'SETTLED', amount: input.amount };
+        await this.idempotency.complete(tx, { ...input.idempotency, responseBody: asJson(response) });
+        return response;
+      }),
+    );
+  }
+
+  async settleLoanApproval(input: {
+    loanId: string;
+    idempotency: IdempotencyInput;
+    requestId: string;
+    actorUserId: string;
+  }) {
+    return this.withDeadlockRetry(() =>
+      this.prisma.$transaction(async (tx) => {
+        const idem = await this.idempotency.start(tx, input.idempotency);
+        if (idem.replay) return idem.response;
+
+        await tx.$queryRaw`SELECT id FROM loans WHERE id = ${input.loanId} FOR UPDATE`;
+        const loan = await tx.loan.findUniqueOrThrow({ where: { id: input.loanId } });
+        
+        if (loan.status !== 'PENDING') {
+          throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan is not in PENDING state');
+        }
+
+        const loanPool = await tx.walletAccount.findUniqueOrThrow({ where: { accountCode: 'LOAN_POOL_ACCOUNT' } });
+        const accounts = await this.lockAccounts(tx, [loanPool.id, loan.borrowerWalletId]);
+        const lockedLoanPool = accounts.get(loanPool.id) ?? loanPool;
+        
+        this.ensureDebitAllowed(lockedLoanPool, loan.principal);
+        
+        const transactionId = randomUUID();
+        
+        await tx.loan.update({
+          where: { id: loan.id },
+          data: {
+            status: 'DISBURSED',
+            disbursedAt: new Date(),
+          }
+        });
+
         await tx.transaction.create({
           data: {
             id: transactionId,
             transactionType: 'LOAN_DISBURSEMENT',
             status: 'SETTLED',
-            sourceApp: 'CENTRAL_BANK_CORE',
+            sourceApp: 'CENTRAL_BANK_MANAGER',
             payerWalletId: loanPool.id,
-            payeeWalletId: input.borrowerWalletId,
-            grossAmount: input.amount,
-            totalDebit: input.amount,
+            payeeWalletId: loan.borrowerWalletId,
+            grossAmount: loan.principal,
+            totalDebit: loan.principal,
             idempotencyKey: input.idempotency.key,
-            metadata: { loan_id: loanId, interest_amount: interest.toString(), total_due: totalDue.toString() },
+            metadata: { loan_id: loan.id, interest_amount: loan.interestAmount.toString(), total_due: loan.totalDue.toString() },
             settledAt: new Date(),
           },
         });
+        
         await this.ledger.post(tx, {
           transactionId,
           entries: await this.applyEntries(tx, [
-            { accountId: loanPool.id, direction: 'DEBIT', amount: input.amount, description: 'Loan disbursement' },
-            { accountId: input.borrowerWalletId, direction: 'CREDIT', amount: input.amount, description: 'Loan disbursement' },
+            { accountId: loanPool.id, direction: 'DEBIT', amount: loan.principal, description: 'Loan disbursement' },
+            { accountId: loan.borrowerWalletId, direction: 'CREDIT', amount: loan.principal, description: 'Loan disbursement' },
           ]),
         });
+        
         const response = {
-          loan_id: loanId,
+          loan_id: loan.id,
           transaction_id: transactionId,
-          principal: input.amount,
-          interest_amount: interest,
-          total_due: totalDue,
+          principal: loan.principal,
           status: 'DISBURSED',
         };
         await this.idempotency.complete(tx, { ...input.idempotency, responseBody: asJson(response) });

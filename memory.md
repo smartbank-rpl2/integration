@@ -32,10 +32,17 @@ Sistem ini menggunakan arsitektur microservices-lite yang dipisahkan ke dalam be
   - Mengamankan endpoint Moneter, Ledger, dan Settlement (seperti Reversal) di Central-Bank agar hanya bisa diakses oleh `CENTRAL_BANK_ADMIN`.
   - Lolos uji *compile* dan *unit testing* (`npm test`) di *Central-Bank*.
 
+- **[2026-06-07] Sprint 5 Completed (TELLER & MANAGER Modules):**
+  - Mengubah Prisma schema dengan penambahan status `PENDING` pada `LoanStatus`.
+  - Mengubah alur pengajuan pinjaman (`applyLoan`) agar membuat loan dengan status `PENDING` tanpa langsung mencairkan dana.
+  - Membangun `TellerModule` untuk verifikasi KYC nasabah, memproses Top-up, dan melakukan Withdrawal.
+  - Membangun `ManagerModule` untuk mengaktifkan/membekukan (*suspend*) akun nasabah, serta menyetujui (*approve*) atau menolak (*reject*) pinjaman.
+  - Menambahkan method pendukung `settleTopUp`, `settleWithdrawal`, dan `settleLoanApproval` di `SettlementService`.
+  - Integrasi NestJS sukses dan lolos uji kompilasi (`npm run build`).
+
 ## 4. Notes & Constraints
 - Dilarang mengganti *engine* database (harus menggunakan MySQL yang sudah ada dan tidak merusak data eksisting).
 - Semua pengembangan fitur ke depannya wajib dikoordinasikan melalui API Gateway.
-- User (Nasabah) berhak mensimulasikan fitur Top-up/Withdraw secara mandiri melalui *endpoint* Wallet mereka.
 
 ## 5. Rencana Pengembangan Selanjutnya (Next Steps)
 Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:

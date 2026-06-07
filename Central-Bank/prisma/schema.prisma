@@ -93,6 +93,7 @@ enum FeeType {
 }
 
 enum LoanStatus {
+  PENDING
   DISBURSED
   PARTIAL_PAID
   PAID
