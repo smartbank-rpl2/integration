@@ -1,0 +1,119 @@
+================================================================================
+          STRUKTUR OTORISASI PERAN & HAK AKSES (ROLES & PERMISSIONS)
+                 SMARTBANK TWO-TIER CBDC MONETARY ECOSYSTEM
+================================================================================
+
+Dokumen ini menjelaskan struktur pembagian wewenang, batasan akses, dan matriks 
+hak akses untuk 4 peran (roles) utama dalam ekosistem SmartBank:
+1. User (Retail Customer / Merchant)
+2. Teller (Staf Layanan Nasabah)
+3. Manager (Pimpinan Cabang / Supervisor)
+4. Admin Central Bank (Gubernur Bank Sentral / Sistem Moneter - Tier 1)
+
+--------------------------------------------------------------------------------
+1. DESKRIPSI DAN WEWENANG SETIAP PERAN (ROLES)
+--------------------------------------------------------------------------------
+
+A. USER (RETAIL CUSTOMER / MERCHANT)
+   - Peran retail utama pada ekosistem Tier-2 e-wallet.
+   - Wewenang:
+     * Mengelola keuangan pribadi (cek saldo, melihat mutasi rekening sendiri).
+     * Melakukan transfer instan P2P ke sesama pengguna e-wallet.
+     * Melakukan pembayaran invoice/tagihan belanja dari Merchant rekanan.
+     * Mengajukan kredit pinjaman modal UMKM dan membayar angsurannya.
+     * Melakukan simulasi top-up atau withdraw mandiri.
+   - Batasan:
+     * Tidak memiliki akses administrasi apa pun ke database backend core.
+     * Tidak bisa melihat data nasabah lain atau mengubah status akun sendiri.
+
+B. TELLER (BANK TELLER / LOKET LAYANAN)
+   - Staf bank garis depan (front-office) yang membantu nasabah secara langsung.
+   - Wewenang:
+     * Melakukan registrasi data nasabah baru yang datang ke kantor cabang.
+     * Melakukan verifikasi KYC nasabah (mengubah kyc_tier dari BASIC ke VERIFIED).
+     * Membantu proses deposit tunai (Top-Up) & penarikan tunai (Withdrawal) nasabah.
+     * Membantu pencarian profil nasabah jika terjadi kendala operasional.
+   - Batasan:
+     * Tidak boleh menyetujui pengajuan kredit/pinjaman modal.
+     * Tidak boleh membekukan/menangguhkan akun nasabah secara sepihak.
+     * Tidak boleh memodifikasi parameter moneter makro.
+
+C. BANK MANAGER (SUPERVISOR / PIMPINAN CABANG)
+   - Pengawas operasional retail harian yang mengontrol kinerja Teller.
+   - Wewenang:
+     * Memiliki seluruh hak akses yang dimiliki oleh Teller.
+     * Menyetujui (Approve) atau menolak (Reject) permohonan pinjaman modal UMKM nasabah.
+     * Melakukan pembekuan sementara atau penangguhan (Suspend) akun nasabah yang dicurigai.
+     * Menyesuaikan limit transaksi harian khusus bagi nasabah tertentu (misal Merchant besar).
+   - Batasan:
+     * Tidak boleh melakukan pencetakan uang baru (Issuance) atau pemusnahan uang (Burn).
+     * Tidak boleh mengatur tarif pajak sistem atau biaya transaksi global.
+
+D. ADMIN CENTRAL BANK (GUBERNUR BANK SENTRAL / TIER-1 ADMIN)
+   - Otoritas tertinggi pengendali pasokan moneter dan audit keuangan terpusat.
+   - Wewenang:
+     * Mencetak uang digital CBDC baru (Issuance) dan memusnahkan uang beredar (Burn).
+     * Memantau integritas total suplai uang beredar di sistem (Money Supply Invariant).
+     * Membaca dan mengaudit seluruh jurnal buku besar berpasangan global (Global Ledger).
+     * Melakukan pembatalan transaksi secara ACID (Reversal) jika terjadi fraud/kesalahan sistem.
+     * Mengatur persentase biaya transaksi global (Bank Fee, Gateway Fee, Pajak/Tax).
+     * Mengunci atau mencairkan akun-akun sistem (Clearing, Reserve, Loan Pool).
+   - Batasan:
+     * Wewenang mutlak, hanya dipegang oleh admin infrastruktur bank sentral.
+
+--------------------------------------------------------------------------------
+2. MATRIKS HAK AKSES API & FITUR (ACCESS CONTROL MATRIX)
+--------------------------------------------------------------------------------
+
+Keterangan:
+[ V ] = Diizinkan (Allowed)
+[ X ] = Dilarang (Denied)
+
++-----------------------------------------+--------+--------+---------+---------+
+| Fitur / Endpoint API                    | User   | Teller | Manager | CB Admin|
++-----------------------------------------+--------+--------+---------+---------+
+| Cek Saldo & Mutasi Rekening Sendiri     |   V    |   X    |    X    |    X    |
+| Kirim Dana P2P & Bayar Tagihan QR       |   V    |   X    |    X    |    X    |
+| Mengajukan Kredit UMKM (Pengajuan)      |   V    |   X    |    X    |    X    |
+| Membayar Cicilan Kredit UMKM            |   V    |   X    |    X    |    X    |
+| Registrasi Akun Baru & Verifikasi KYC   |   X    |   V    |    V    |    V    |
+| Membantu Top-up / Tarik Tunai Nasabah   |   X    |   V    |    V    |    V    |
+| Menyetujui/Menolak Kredit Modal UMKM    |   X    |   X    |    V    |    V    |
+| Menangguhkan Akun (Change User Status)  |   X    |   X    |    V    |    V    |
+| Cetak / Musnahkan Uang CBDC (Issuance)  |   X    |   X    |    X    |    V    |
+| Audit Seluruh Buku Besar (Global Ledger)|   X    |   X    |    X    |    V    |
+| Pembatalan Transaksi ACID (Reversal)    |   X    |   X    |    X    |    V    |
+| Mengubah Tarif Pajak & Biaya Transaksi  |   X    |   X    |    X    |    V    |
++-----------------------------------------+--------+--------+---------+---------+
+
+--------------------------------------------------------------------------------
+3. PANDUAN IMPLEMENTASI DATABASE (PRISMA SCHEMA ENUM)
+--------------------------------------------------------------------------------
+
+Jika Anda ingin merevisi skema database, Anda dapat menambahkan Enum berikut 
+di file prisma schema:
+
+```prisma
+enum UserRole {
+  WALLET_USER
+  BANK_TELLER
+  BANK_MANAGER
+  CENTRAL_BANK_ADMIN
+}
+```
+
+Implementasi perlindungan hak akses pada level kode Controller (NestJS):
+
+```typescript
+// Guard untuk memeriksa Peran User
+@UseGuards(RolesGuard)
+@Roles(UserRole.CENTRAL_BANK_ADMIN)
+@Post('reversals')
+async reversal(@Body() dto: ReversalDto) {
+  return this.settlement.reverseTransaction(dto);
+}
+```
+
+================================================================================
+                        SMARTBANK DEVELOPMENT RESOURCE
+================================================================================

@@ -6,8 +6,11 @@ import { MoneyService } from '../money/money.service';
 import { SettlementService } from '../settlement/settlement.service';
 import { WalletAccountService } from '../wallets/wallet-account.service';
 import { ApplyLoanDto, RepayLoanDto } from './dto';
+import { Roles } from '../../common/roles.decorator';
+import { UserRole } from '@prisma/client';
 
 @Controller('loans')
+@Roles(UserRole.WALLET_USER)
 export class LoansController {
   constructor(
     private readonly settlement: SettlementService,

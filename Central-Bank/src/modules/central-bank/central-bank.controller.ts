@@ -3,10 +3,13 @@ import { Request } from 'express';
 import { CurrentUser, RequestUser } from '../../common/current-user.decorator';
 import { requireIdempotencyKey, requestHash, requestId } from '../../common/request-utils';
 import { SettlementService } from '../settlement/settlement.service';
+import { Roles } from '../../common/roles.decorator';
+import { UserRole } from '@prisma/client';
 import { ReversalDto } from './dto';
 import { MonetaryPolicyService } from './monetary-policy.service';
 
 @Controller('central-bank')
+@Roles(UserRole.CENTRAL_BANK_ADMIN)
 export class CentralBankController {
   constructor(
     private readonly monetary: MonetaryPolicyService,

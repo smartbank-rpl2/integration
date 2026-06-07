@@ -13,6 +13,7 @@ import { loanController } from './controllers/loan.controller.js';
 import { authMiddleware } from './middleware/auth.middleware.js';
 import { pinMiddleware } from './middleware/pin.middleware.js';
 import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
+import { requireRole } from './middleware/rbac.middleware.js';
 import { responseHelper } from './utils/response.js';
 import { db } from './config/database.js';
 
@@ -56,7 +57,7 @@ app.post('/api/v1/auth/register', authController.register);
 app.post('/api/v1/auth/login', authController.login);
 
 // --- PROTECTED ROUTES ---
-app.use('/api/v1/wallets/me', authMiddleware);
+app.use('/api/v1/wallets/me', authMiddleware, requireRole('WALLET_USER'));
 app.get('/api/v1/wallets/me/balance', walletController.getBalance);
 app.get('/api/v1/wallets/me/transactions', walletController.getTransactions);
 // Testing Helper: Auto-generates a mock invoice to test QR payment flow
@@ -69,13 +70,13 @@ app.put('/api/v1/wallets/me/security', walletController.updateSecurity);
 app.put('/api/v1/wallets/me/upgrade', walletController.upgradeAccount);
 app.post('/api/v1/wallets/me/subscribe-insight', walletController.subscribeInsight);
 
-// Financial Transactions: Requires JWT Auth + PIN Validation + Idempotency Protection
-app.post('/api/v1/transfers', authMiddleware, idempotencyMiddleware, pinMiddleware, transferController.createTransfer);
-app.post('/api/v1/payment-requests/:id/pay', authMiddleware, idempotencyMiddleware, pinMiddleware, paymentController.payInvoice);
+// Financial Transactions: Requires JWT Auth + PIN Validation + Idempotency Protection + RBAC
+app.post('/api/v1/transfers', authMiddleware, requireRole('WALLET_USER'), idempotencyMiddleware, pinMiddleware, transferController.createTransfer);
+app.post('/api/v1/payment-requests/:id/pay', authMiddleware, requireRole('WALLET_USER'), idempotencyMiddleware, pinMiddleware, paymentController.payInvoice);
 
-// Loans Subsystem: Requires JWT Auth + Idempotency Protection
-app.post('/api/v1/loans/apply', authMiddleware, idempotencyMiddleware, loanController.applyLoan);
-app.post('/api/v1/loans/:loan_id/repay', authMiddleware, idempotencyMiddleware, loanController.repayLoan);
+// Loans Subsystem: Requires JWT Auth + Idempotency Protection + RBAC
+app.post('/api/v1/loans/apply', authMiddleware, requireRole('WALLET_USER'), idempotencyMiddleware, loanController.applyLoan);
+app.post('/api/v1/loans/:loan_id/repay', authMiddleware, requireRole('WALLET_USER'), idempotencyMiddleware, loanController.repayLoan);
 
 // 404 Route handler
 app.use((req, res) => {

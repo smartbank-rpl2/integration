@@ -26,13 +26,18 @@ Sistem ini menggunakan arsitektur microservices-lite yang dipisahkan ke dalam be
   - Seluruh *unit test* Prisma divalidasi dan berhasil *PASS*.
   - Perubahan di-*commit* ke repositori Git (`feat: implement API Gateway, update MANAGER and TELLER roles`).
   - Pembuatan file `gemini.md` dan `memory.md` sebagai pondasi kepatuhan operasional AI.
+- **[2026-06-07] Sprint 4 Completed (RBAC & Feature Separation):**
+  - Diimplementasikan `requireRole` middleware di sisi *Wallet* untuk memproteksi endpoint P2P, pembayaran, dan manajemen profil khusus untuk `WALLET_USER`.
+  - Diimplementasikan `@Roles` decorator dan `RolesGuard` di sisi *Central-Bank* (NestJS) yang memvalidasi header `x-user-role`.
+  - Mengamankan endpoint Moneter, Ledger, dan Settlement (seperti Reversal) di Central-Bank agar hanya bisa diakses oleh `CENTRAL_BANK_ADMIN`.
+  - Lolos uji *compile* dan *unit testing* (`npm test`) di *Central-Bank*.
 
 ## 4. Notes & Constraints
 - Dilarang mengganti *engine* database (harus menggunakan MySQL yang sudah ada dan tidak merusak data eksisting).
 - Semua pengembangan fitur ke depannya wajib dikoordinasikan melalui API Gateway.
+- User (Nasabah) berhak mensimulasikan fitur Top-up/Withdraw secara mandiri melalui *endpoint* Wallet mereka.
 
 ## 5. Rencana Pengembangan Selanjutnya (Next Steps)
 Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
-1. **Pemisahan Fitur Berdasarkan Role:** Mengimplementasikan spesifikasi fungsionalitas dan perizinan spesifik untuk masing-masing role (`NASABAH`, `ADMIN`, `MANAGER`, `TELLER`).
-2. **Pengecekan Keseluruhan API:** Mengecek dan melakukan validasi keamanan serta fungsional pada semua *endpoint* API (Wallet & Central-Bank) yang dilewati oleh Gateway.
-3. **Pembuatan Frontend:** Merancang dan membangun UI/UX antarmuka pengguna *(Frontend)* yang akan terhubung ke API Gateway untuk memvisualisasikan sistem.
+1. **Pengecekan Keseluruhan API (End-to-End):** Mengecek dan melakukan validasi fungsional pada semua alur (*flow*) mulai dari Gateway, Wallet, hingga Central Bank secara utuh (E2E Integration).
+2. **Pembuatan Frontend:** Merancang dan membangun UI/UX antarmuka pengguna *(Frontend)* dengan framework modern yang akan terhubung ke API Gateway untuk memvisualisasikan sistem Role yang sudah dibangun.

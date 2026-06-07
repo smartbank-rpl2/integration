@@ -15,6 +15,7 @@ import { PrismaModule } from './modules/prisma/prisma.module';
 import { SettlementModule } from './modules/settlement/settlement.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
 import { OptionalAuthGuard } from './common/optional-auth.guard';
+import { RolesGuard } from './common/roles.guard';
 
 @Module({
   imports: [
@@ -33,6 +34,9 @@ import { OptionalAuthGuard } from './common/optional-auth.guard';
     CentralBankModule,
     HealthModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: OptionalAuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: OptionalAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

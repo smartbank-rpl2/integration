@@ -3,6 +3,8 @@ import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Request } from 'express';
 import { CurrentUser, RequestUser } from '../../common/current-user.decorator';
 import { requireIdempotencyKey, requestHash, requestId } from '../../common/request-utils';
+import { Roles } from '../../common/roles.decorator';
+import { UserRole } from '@prisma/client';
 import { MoneyService } from '../money/money.service';
 import { WalletAccountService } from '../wallets/wallet-account.service';
 import { SettlementService } from './settlement.service';
@@ -20,6 +22,7 @@ class TransferDto {
 }
 
 @Controller('transfers')
+@Roles(UserRole.WALLET_USER)
 export class TransfersController {
   constructor(
     private readonly settlement: SettlementService,

@@ -5,9 +5,12 @@ import { requireIdempotencyKey, requestHash, requestId } from '../../common/requ
 import { MoneyService } from '../money/money.service';
 import { SettlementService } from '../settlement/settlement.service';
 import { CreatePaymentRequestDto } from './dto';
+import { Roles } from '../../common/roles.decorator';
+import { UserRole } from '@prisma/client';
 import { PaymentRequestService } from './payment-request.service';
 
 @Controller('payment-requests')
+@Roles(UserRole.WALLET_USER)
 export class PaymentRequestsController {
   constructor(
     private readonly service: PaymentRequestService,
