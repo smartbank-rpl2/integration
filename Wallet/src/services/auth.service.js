@@ -4,6 +4,7 @@ import { db } from '../config/database.js';
 import { centralBankService } from './centralBank.service.js';
 import { tokenService } from './token.service.js';
 import { CustomError } from '../utils/errors.js';
+import { config } from '../config/config.js';
 
 export const authService = {
   
@@ -91,11 +92,79 @@ export const authService = {
   login: async (email, password) => {
     const cleanEmail = email.toLowerCase().trim();
 
-    // Fetch user locally
+    // Fetch user locally (in-memory or MySQL)
     const result = await db.query('SELECT * FROM users WHERE email = $1', [cleanEmail]);
+    
     if (result.rowCount === 0) {
+      // --- FALLBACK: user mungkin terdaftar di Central Bank tapi belum di cache lokal ---
+      if (!config.centralBank.mock) {
+        try {
+          console.log(`🔄 [AUTH] Fallback ke Central Bank untuk: ${cleanEmail}`);
+          const cbResponse = await fetch(`${config.centralBank.url}/api/v1/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: cleanEmail, password })
+          });
+
+          if (!cbResponse.ok) {
+            throw new CustomError('UNAUTHORIZED', 'Email atau password yang Anda masukkan salah', 401);
+          }
+
+          const cbData = await cbResponse.json();
+          // CB login response sekarang mengandung: access_token, user_id, name, role, kyc_tier, wallet_id
+          const cbPayload = cbData.data || cbData;
+          const cbToken = cbPayload.access_token;
+
+          // Decode JWT juga sebagai fallback
+          let userId = cbPayload.user_id;
+          let userRole = cbPayload.role || 'RETAIL_CUSTOMER';
+          let kycTier = cbPayload.kyc_tier || 'BASIC';
+          let userName = cbPayload.name;
+          let walletId = cbPayload.wallet_id;
+
+          // Fallback: decode dari JWT jika field tidak ada di response
+          if (!userId && cbToken) {
+            try {
+              const payload = JSON.parse(Buffer.from(cbToken.split('.')[1], 'base64').toString('utf8'));
+              userId = payload.sub || payload.userId;
+              userRole = payload.role || userRole;
+              if (!userName) userName = payload.name;
+            } catch (e) { /* ignore */ }
+          }
+
+          if (!userId) userId = `usr_cb_${cleanEmail.replace(/[@.]/g, '_')}`;
+          if (!userName) userName = cleanEmail.split('@')[0];
+          if (!walletId) walletId = `wal_res_${userId.substring(0, 10)}`;
+          if (userRole === 'WALLET_USER') userRole = 'RETAIL_CUSTOMER';
+
+          // Cache ke in-memory store agar request berikutnya tidak perlu fallback lagi
+          const passwordHash = bcrypt.hashSync(password, 10);
+          await db.query(
+            'INSERT INTO users (id, name, email, phone, password_hash, pin_hash, kyc_tier, status, role) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            [userId, userName, cleanEmail, null, passwordHash, null, kycTier, 'ACTIVE', userRole]
+          );
+          await db.query(
+            'INSERT INTO wallet_accounts_cache (wallet_id, user_id, available_balance, currency) VALUES ($1, $2, $3, $4)',
+            [walletId, userId, 0, 'CBDC_IDR']
+          );
+
+          console.log(`✅ [AUTH] Fallback berhasil: ${cleanEmail} (role: ${userRole}, wallet: ${walletId})`);
+
+          const tokens = tokenService.generateTokens({ userId, name: userName, email: cleanEmail, phone: null, walletId, role: userRole });
+
+          return {
+            user: { id: userId, name: userName, email: cleanEmail, phone: null, kycTier, walletId, role: userRole },
+            ...tokens
+          };
+        } catch (fallbackErr) {
+          if (fallbackErr instanceof CustomError) throw fallbackErr;
+          throw new CustomError('UNAUTHORIZED', 'Email atau password yang Anda masukkan salah', 401);
+        }
+      }
       throw new CustomError('UNAUTHORIZED', 'Email atau password yang Anda masukkan salah', 401);
     }
+
+
 
     const user = result.rows[0];
 

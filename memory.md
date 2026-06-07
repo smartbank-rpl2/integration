@@ -63,6 +63,14 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
 3. **Dokumentasi & Finalisasi**
   - Menyiapkan Dokumentasi Akhir / Panduan Penggunaan (*User Manual*) yang utuh dan jelas untuk diserahkan ke pengguna.
 
+
 ### Current Task
 - **Selesai:** Fix payload frontend & E2E test, E2E test berhasil lolos tanpa eror, penyimpanan progress di `memory.md`.
-- **Selanjutnya:** Menyusun Panduan Pengguna (User Manual).
+
+- **[2026-06-08] Session Bug Fix (Teller Login & Customer Search):**
+  - **Bug 1 - Teller Login 401:** Akun teller@test.com dan manager@test.com hanya ada di Central Bank MySQL, bukan di Wallet in-memory store. Fix: tambahkan `seedStaffAccounts()` di `Wallet/src/config/database.js` yang menyuntikkan akun staff ke in-memory store saat server start.
+  - **Bug 2 - Customer Not Found in Teller:** `findCustomer()` di Central Bank hanya melakukan exact match untuk email. Fix: ubah ke `contains` match + sanitasi response (hapus `passwordHash`, `pinHash`) + konversi `BigInt` balance ke `Number`.
+  - **Semua perubahan telah di-commit ke Git.**
+
+- **Selanjutnya:** Menyusun Panduan Pengguna (User Manual) dan dashboard Manager.
+

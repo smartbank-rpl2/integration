@@ -87,11 +87,27 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      include: {
+        wallets: {
+          where: { accountType: 'USER_WALLET' },
+          select: { id: true }
+        }
+      }
+    });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Email atau password salah');
     }
-    const token = this.jwt.sign({ sub: user.id, email: user.email, role: user.role });
-    return { access_token: token, expires_in: 3600 };
+    const token = this.jwt.sign({ sub: user.id, email: user.email, role: user.role, name: user.name });
+    return {
+      access_token: token,
+      expires_in: 3600,
+      user_id: user.id,
+      name: user.name,
+      role: user.role,
+      kyc_tier: user.kycTier,
+      wallet_id: user.wallets[0]?.id || null,
+    };
   }
 }
