@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors - Luxury Minimal / Industrial Finance */
+  --color-background: #09090b; /* Zinc 950 / Obsidian Black */
+  --color-foreground: #fafafa; /* Zinc 50 */
+  
+  --color-card: #18181b; /* Zinc 900 */
+  --color-card-foreground: #fafafa;
+  
+  --color-popover: #18181b;
+  --color-popover-foreground: #fafafa;
+  
+  --color-primary: #00ffa3; /* Cyber Green / Neon Mint */
+  --color-primary-foreground: #09090b; /* Black text on neon background */
+  
+  --color-secondary: #27272a; /* Zinc 800 */
+  --color-secondary-foreground: #fafafa;
+  
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa; /* Zinc 400 */
+  
+  --color-accent: #27272a;
+  --color-accent-foreground: #00ffa3;
+  
+  --color-destructive: #ef4444; /* Red 500 */
+  --color-destructive-foreground: #fafafa;
+  
+  --color-border: #27272a; /* Zinc 800 */
+  --color-input: #27272a;
+  --color-ring: #00ffa3;
+
+  /* Typography */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-outfit), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), monospace;
+
+  /* Radius */
+  --radius-lg: 0.75rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.25rem;
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these base styles back for backward compatibility.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-border, currentColor);
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    /* Improve font rendering */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

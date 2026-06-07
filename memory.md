@@ -47,8 +47,19 @@ Sistem ini menggunakan arsitektur microservices-lite yang dipisahkan ke dalam be
 ## 5. Rencana Pengembangan Selanjutnya (Next Steps)
 Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
 1.- **Pengecekan Keseluruhan API (End-to-End):** Gateway ke Wallet ke Central Bank berfungsi dengan sinkron, termasuk autentikasi role JWT terpusat dan perbaikan isu `Idempotency-Key` pada POST requests. Status pengecekan API E2E: **SELESAI (PASS)**.
-- **Pembuatan Frontend:** Merancang dan membangun UI/UX untuk sistem. (Status: **NOT STARTED**)
+- **Phase 2: Pembuatan Frontend (SELESAI - PASS)**
+- **Tujuan**: Merancang dan membangun UI/UX sistem perbankan.
+- **Tech Stack**: Next.js (App Router), Tailwind CSS v4, Framer Motion, Zustand, dan Driver.js.
+- **Progress**:
+  - `[x]` Desain sistem: Tema "Luxury Minimal" dengan Dark Mode (Obsidian) dan aksen Cyber Green.
+  - `[x]` Halaman `Landing Page` interaktif dan `Guide` simulasi role.
+  - `[x]` Sistem Autentikasi: Login JWT ke Gateway `localhost:4000` via Custom API fetch dengan auto-inject `Idempotency-Key`.
+  - `[x]` **Retail Dashboard:** Saldo CBDC (Recharts), Histori, Transfer, Apply Loan.
+  - `[x]` **Teller Dashboard:** Pengecekan KYC, fitur Top-Up, dan Penarikan (Withdraw).
+  - `[x]` **Manager Dashboard:** Suspend/Activate User dan Queue Persetujuan Loan.
+  - `[x]` **UX Tambahan:** Onboarding tour (Driver.js) saat baru login.
+- **Next Action**: Jika seluruh E2E UI testing dari sisi user sudah sesuai, tahap proyek (Backend & Frontend) dianggap selesai. Lakukan evaluasi akhir atau perbaikan bug jika ada keluhan dari pengguna.
 
 ### Current Task
-- **Selesai:** Fix integrasi JWT secret antara Gateway, Wallet, dan Central Bank. Melakukan test E2E keseluruhan API dengan 4 user role (RETAIL_CUSTOMER, TELLER, MANAGER).
-- **Selanjutnya:** Melanjutkan ke fase Pembuatan Frontend, dimulai dari desain antarmuka, pembuatan app menggunakan Next.js/Vite, dan integrasi dengan Gateway.
+- **Selesai:** Fix integrasi JWT secret antara Gateway, Wallet, dan Central Bank. Melakukan test E2E keseluruhan API dengan 4 user role (RETAIL_CUSTOMER, TELLER, MANAGER). Selesai membangun Frontend.
+- **Selanjutnya:** Melakukan final deployment check dan dokumentasi User Manual.

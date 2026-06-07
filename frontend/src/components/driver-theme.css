@@ -1,0 +1,36 @@
+/* Custom styling for driver.js popovers to match Tailwind Dark Mode */
+.driver-popover {
+  background-color: #18181b !important; /* bg-card */
+  color: #fafafa !important;
+  border: 1px solid #27272a !important; /* border-border */
+  border-radius: 12px !important;
+  font-family: var(--font-inter), sans-serif !important;
+}
+
+.driver-popover-title {
+  font-family: var(--font-outfit), sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  margin-bottom: 8px !important;
+}
+
+.driver-popover-description {
+  color: #a1a1aa !important; /* text-muted-foreground */
+  font-size: 14px !important;
+}
+
+.driver-popover-footer button {
+  background-color: #27272a !important; /* bg-secondary */
+  color: #fafafa !important;
+  border: 1px solid #27272a !important;
+  border-radius: 6px !important;
+  padding: 6px 12px !important;
+  text-shadow: none !important;
+}
+
+.driver-popover-footer button.driver-popover-next-btn {
+  background-color: #00ffa3 !important; /* bg-primary */
+  color: #09090b !important; /* text-primary-foreground */
+  border-color: #00ffa3 !important;
+  font-weight: 600 !important;
+}
