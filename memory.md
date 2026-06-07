@@ -46,5 +46,9 @@ Sistem ini menggunakan arsitektur microservices-lite yang dipisahkan ke dalam be
 
 ## 5. Rencana Pengembangan Selanjutnya (Next Steps)
 Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
-1. **Pengecekan Keseluruhan API (End-to-End):** Mengecek dan melakukan validasi fungsional pada semua alur (*flow*) mulai dari Gateway, Wallet, hingga Central Bank secara utuh (E2E Integration).
-2. **Pembuatan Frontend:** Merancang dan membangun UI/UX antarmuka pengguna *(Frontend)* dengan framework modern yang akan terhubung ke API Gateway untuk memvisualisasikan sistem Role yang sudah dibangun.
+1.- **Pengecekan Keseluruhan API (End-to-End):** Gateway ke Wallet ke Central Bank berfungsi dengan sinkron, termasuk autentikasi role JWT terpusat dan perbaikan isu `Idempotency-Key` pada POST requests. Status pengecekan API E2E: **SELESAI (PASS)**.
+- **Pembuatan Frontend:** Merancang dan membangun UI/UX untuk sistem. (Status: **NOT STARTED**)
+
+### Current Task
+- **Selesai:** Fix integrasi JWT secret antara Gateway, Wallet, dan Central Bank. Melakukan test E2E keseluruhan API dengan 4 user role (RETAIL_CUSTOMER, TELLER, MANAGER).
+- **Selanjutnya:** Melanjutkan ke fase Pembuatan Frontend, dimulai dari desain antarmuka, pembuatan app menggunakan Next.js/Vite, dan integrasi dengan Gateway.

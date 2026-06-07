@@ -25,7 +25,7 @@ app.use('/api/bank', jwtMiddleware, createProxyMiddleware({
   target: CENTRAL_BANK_URL,
   changeOrigin: true,
   pathRewrite: {
-    '^/api/bank': '/api/v1', // rewrite path
+    '^/': '/api/v1/', // rewrite path because /api/bank is stripped
   },
 }));
 
@@ -34,7 +34,7 @@ app.use('/api/wallet', createProxyMiddleware({
   target: WALLET_URL,
   changeOrigin: true,
   pathRewrite: {
-    '^/api/wallet': '/api', // rewrite path
+    '^/': '/api/', // rewrite path because /api/wallet is stripped
   },
 }));
 
