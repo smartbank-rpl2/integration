@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Req, Query } from '@nestjs/common';
 import { TellerService } from './teller.service';
 import { TellerActionDto, KycActionDto } from './dto';
 import { Roles } from '../../common/roles.decorator';
@@ -15,6 +15,11 @@ export class TellerController {
     private readonly teller: TellerService,
     private readonly money: MoneyService,
   ) {}
+
+  @Get('customer')
+  async findCustomer(@Query('query') query: string) {
+    return this.teller.findCustomer(query);
+  }
 
   @Post('kyc/verify')
   async verifyKyc(@Body() dto: KycActionDto) {

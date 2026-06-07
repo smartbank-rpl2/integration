@@ -110,7 +110,7 @@ async function runE2ETests() {
 
     if (w2Id) {
       const transferRes = await r1Client.post('/api/bank/transfers', {
-        payeeWalletId: w2Id,
+        to_wallet_id: w2Id,
         amount: '1000',
         note: 'E2E Transfer'
       });
@@ -128,7 +128,7 @@ async function runE2ETests() {
     console.log('\n--- Retail1 Attempts Transfer (Suspended) ---');
     if (w2Id) {
       const transferFailRes = await r1Client.post('/api/bank/transfers', {
-        payeeWalletId: w2Id,
+        to_wallet_id: w2Id,
         amount: '1000',
         note: 'E2E Fail Transfer'
       });

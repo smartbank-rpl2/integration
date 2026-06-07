@@ -40,26 +40,29 @@ Sistem ini menggunakan arsitektur microservices-lite yang dipisahkan ke dalam be
   - Menambahkan method pendukung `settleTopUp`, `settleWithdrawal`, dan `settleLoanApproval` di `SettlementService`.
   - Integrasi NestJS sukses dan lolos uji kompilasi (`npm run build`).
 
+- **[2026-06-07] Phase 2 (Frontend Integration & E2E Testing):**
+  - Menerapkan arsitektur UI Next.js dengan Zustand dan Framer Motion.
+  - Memperbaiki rute Fetch API Gateway (`/api/wallet/...` dan `/api/bank/...`) agar tidak mengembalikan 404.
+  - Memperbaiki crash *token parsing* saat Login agar mengakses `loginRes.data.accessToken` yang benar.
+  - Mengubah `/register` untuk menghapus pilihan dropdown Role agar pendaftar otomatis menjadi `RETAIL` (Nasabah).
+  - Menyuntikkan kredensial dummy untuk `TELLER` dan `MANAGER` langsung ke konfigurasi *Mock DB* In-Memory dari Wallet Service, sehingga testing bisa langsung dilakukan dari UI login.
+  - Memperbaiki payload request E2E Test pada simulasi transfer sehingga sinkron dengan Central Bank API.
+  - Uji End-to-End Test (`e2e-test.js`) 100% PASS meliputi (Register, Login, KYC Verification, Top Up, Apply Loan, Approve Loan, Transfer, Suspend User, Fail Transfer Suspended, Activate User, Withdraw).
+
 ## 4. Notes & Constraints
 - Dilarang mengganti *engine* database (harus menggunakan MySQL yang sudah ada dan tidak merusak data eksisting).
 - Semua pengembangan fitur ke depannya wajib dikoordinasikan melalui API Gateway.
+- Akun Teller dan Manager dummy harus tetap disiapkan oleh sistem atau backend, sementara halaman pendaftaran publik /register hanya bisa mendaftarkan profil nasabah (Retail).
 
 ## 5. Rencana Pengembangan Selanjutnya (Next Steps)
 Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
-1.- **Pengecekan Keseluruhan API (End-to-End):** Gateway ke Wallet ke Central Bank berfungsi dengan sinkron, termasuk autentikasi role JWT terpusat dan perbaikan isu `Idempotency-Key` pada POST requests. Status pengecekan API E2E: **SELESAI (PASS)**.
-- **Phase 2: Pembuatan Frontend (SELESAI - PASS)**
-- **Tujuan**: Merancang dan membangun UI/UX sistem perbankan.
-- **Tech Stack**: Next.js (App Router), Tailwind CSS v4, Framer Motion, Zustand, dan Driver.js.
-- **Progress**:
-  - `[x]` Desain sistem: Tema "Luxury Minimal" dengan Dark Mode (Obsidian) dan aksen Cyber Green.
-  - `[x]` Halaman `Landing Page` interaktif dan `Guide` simulasi role.
-  - `[x]` Sistem Autentikasi: Login JWT ke Gateway `localhost:4000` via Custom API fetch dengan auto-inject `Idempotency-Key`.
-  - `[x]` **Retail Dashboard:** Saldo CBDC (Recharts), Histori, Transfer, Apply Loan.
-  - `[x]` **Teller Dashboard:** Pengecekan KYC, fitur Top-Up, dan Penarikan (Withdraw).
-  - `[x]` **Manager Dashboard:** Suspend/Activate User dan Queue Persetujuan Loan.
-  - `[x]` **UX Tambahan:** Onboarding tour (Driver.js) saat baru login.
-- **Next Action**: Jika seluruh E2E UI testing dari sisi user sudah sesuai, tahap proyek (Backend & Frontend) dianggap selesai. Lakukan evaluasi akhir atau perbaikan bug jika ada keluhan dari pengguna.
+1. **Pengecekan Keseluruhan API (End-to-End):** Gateway ke Wallet ke Central Bank berfungsi dengan sinkron, termasuk autentikasi role JWT terpusat dan perbaikan isu `Idempotency-Key` pada POST requests. Status pengecekan API E2E: **SELESAI (PASS 100%)**.
+2. **Pembuatan Frontend (SELESAI - PASS)**
+  - UI Frontend untuk login, pendaftaran khusus nasabah, dan Role-Based Dashboard telah selesai.
+  - Endpoints untuk fungsionalitas nasabah (balance, transfer, apply loan), teller (kyc, topup, withdraw), dan manager (suspend, activate user, approve/reject loan) telah sepenuhnya dipetakan dan di-test integrasinya.
+3. **Dokumentasi & Finalisasi**
+  - Menyiapkan Dokumentasi Akhir / Panduan Penggunaan (*User Manual*) yang utuh dan jelas untuk diserahkan ke pengguna.
 
 ### Current Task
-- **Selesai:** Fix integrasi JWT secret antara Gateway, Wallet, dan Central Bank. Melakukan test E2E keseluruhan API dengan 4 user role (RETAIL_CUSTOMER, TELLER, MANAGER). Selesai membangun Frontend.
-- **Selanjutnya:** Melakukan final deployment check dan dokumentasi User Manual.
+- **Selesai:** Fix payload frontend & E2E test, E2E test berhasil lolos tanpa eror, penyimpanan progress di `memory.md`.
+- **Selanjutnya:** Menyusun Panduan Pengguna (User Manual).

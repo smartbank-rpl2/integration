@@ -25,6 +25,49 @@ export class TellerService {
     });
   }
 
+  async findCustomer(query: string) {
+    if (!query) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, 'Query pencarian tidak boleh kosong');
+    }
+
+    // Allow partial email match (contains) OR exact id/phone match
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { id: query },
+          { email: { contains: query } },
+          { phone: query }
+        ]
+      },
+      include: {
+        wallets: {
+          where: {
+            accountType: 'USER_WALLET'
+          }
+        }
+      }
+    });
+    if (!user) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, `Nasabah dengan pencarian "${query}" tidak ditemukan`);
+    }
+
+    // Sanitize: strip sensitive fields before returning
+    const { passwordHash: _pw, pinHash: _pin, ...safeUser } = user as any;
+    return {
+      ...safeUser,
+      wallets: user.wallets.map((w) => ({
+        id: w.id,
+        accountType: w.accountType,
+        currency: w.currency,
+        availableBalance: Number(w.availableBalance),
+        holdBalance: Number(w.holdBalance),
+        status: w.status,
+        createdAt: w.createdAt,
+        updatedAt: w.updatedAt,
+      })),
+    };
+  }
+
   async topUp(input: {
     userId: string;
     amount: bigint;

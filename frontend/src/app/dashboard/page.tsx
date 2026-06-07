@@ -12,7 +12,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      {user.role === "RETAIL_CUSTOMER" && <RetailDashboard />}
+      {(user.role === "WALLET_USER" || user.role === "RETAIL_CUSTOMER" || user.role === "RETAIL") && <RetailDashboard />}
       {user.role === "TELLER" && <TellerDashboard />}
       {user.role === "MANAGER" && <ManagerDashboard />}
       {user.role === "ADMIN" && <ManagerDashboard />} {/* Map ADMIN to MANAGER for now */}

@@ -23,26 +23,17 @@ export default function LoginPage() {
 
     try {
       // Step 1: Login through Gateway
-      const loginRes = await fetchApi('/auth/login', {
+      const loginRes = await fetchApi('/api/wallet/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ phone, password })
+        body: JSON.stringify({ email: phone, password }) // Note: our test script uses email for login
       });
 
-      const token = loginRes.data.token;
-      
-      // Step 2: Fetch User Profile
-      // Normally we decode JWT, but we can just use the token to fetch profile
-      // Let's assume login returns { user, token } or we can decode the token manually.
-      // Wait, Central Bank auth login returns { token }. We need to fetch profile or parse token.
-      // Let's parse the JWT payload (base64) to get user info.
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      
-      const user = {
-        id: payload.sub || payload.id,
-        phone: payload.phone || phone,
-        role: payload.role,
-        status: payload.status || 'ACTIVE'
-      };
+      const token = loginRes.data.accessToken;
+      const user = loginRes.data.user;
+
+      if (!token || !user) {
+        throw new Error("Invalid response from server");
+      }
 
       setAuth(token, user as any);
       router.push('/dashboard');
@@ -59,7 +50,7 @@ export default function LoginPage() {
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 blur-[100px] rounded-full pointer-events-none" />
       
       <motion.div
-        className="max-w-md w-full bg-card border border-border rounded-2xl p-8 z-10 shadow-2xl shadow-black/50"
+        className="max-w-md w-full bg-card border border-border rounded-2xl p-8 z-10 shadow-xl dark:shadow-2xl dark:shadow-black/50"
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -83,14 +74,14 @@ export default function LoginPage() {
 
         <form onSubmit={handleLogin} className="space-y-5">
           <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Phone Number</label>
+            <label className="text-sm font-medium text-foreground">Email / User ID</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1234567890"
+                placeholder="manager@test.com"
                 className="w-full bg-secondary/50 border border-border focus:border-primary rounded-lg py-2.5 pl-10 pr-4 outline-none transition-colors text-foreground font-mono"
                 required
               />
@@ -122,8 +113,15 @@ export default function LoginPage() {
           </button>
         </form>
         
-        <div className="mt-6 text-center text-sm text-muted-foreground">
-          Need test credentials? <a href="/guide" className="text-primary hover:underline">View Guide</a>
+        <div className="mt-6 text-center text-sm text-muted-foreground space-y-3">
+          <div className="bg-secondary/30 p-3 rounded-lg text-xs space-y-1 text-left border border-border">
+            <p className="font-semibold text-foreground mb-2">Dummy Accounts (Pass: password):</p>
+            <p><span className="text-primary font-mono">teller@test.com</span> (Teller)</p>
+            <p><span className="text-primary font-mono">manager@test.com</span> (Manager)</p>
+          </div>
+          <div className="pt-2 border-t border-border/50">
+            Don't have a retail account? <a href="/register" className="text-primary font-medium hover:underline">Register Here</a>
+          </div>
         </div>
       </motion.div>
     </main>

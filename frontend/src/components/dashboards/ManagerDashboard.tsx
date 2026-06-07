@@ -6,20 +6,20 @@ import { motion } from "framer-motion";
 import { ShieldAlert, UserX, UserCheck, CheckCircle, XCircle } from "lucide-react";
 
 export default function ManagerDashboard() {
-  const [targetPhone, setTargetPhone] = useState("");
+  const [targetUserId, setTargetUserId] = useState("");
   const [loanId, setLoanId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleUserStatus = async (action: 'suspend' | 'activate') => {
-    if (!targetPhone) return alert("Please enter a target phone number");
+    if (!targetUserId) return alert("Please enter a target User ID");
     setIsProcessing(true);
     try {
-      await fetchApi(`/bank/manager/${action}`, {
+      await fetchApi(`/api/bank/manager/users/${action}`, {
         method: 'POST',
-        body: JSON.stringify({ phone: targetPhone })
+        body: JSON.stringify({ userId: targetUserId })
       });
-      alert(`User ${targetPhone} has been successfully ${action}ed.`);
-      setTargetPhone("");
+      alert(`User ${targetUserId} has been successfully ${action}ed.`);
+      setTargetUserId("");
     } catch (error: any) {
       alert(error.message || `Failed to ${action} user`);
     } finally {
@@ -31,8 +31,9 @@ export default function ManagerDashboard() {
     if (!loanId) return alert("Please enter a Loan ID");
     setIsProcessing(true);
     try {
-      await fetchApi(`/bank/loans/${loanId}/${action}`, {
-        method: 'POST'
+      await fetchApi(`/api/bank/manager/loans/${action}`, {
+        method: 'POST',
+        body: JSON.stringify({ loanId })
       });
       alert(`Loan ${loanId} has been ${action}d.`);
       setLoanId("");
@@ -64,12 +65,12 @@ export default function ManagerDashboard() {
           
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Target User Phone</label>
+              <label className="text-xs font-medium text-muted-foreground">Target User ID</label>
               <input 
                 type="text" 
-                value={targetPhone}
-                onChange={(e) => setTargetPhone(e.target.value)}
-                placeholder="e.g. 0811111111" 
+                value={targetUserId}
+                onChange={(e) => setTargetUserId(e.target.value)}
+                placeholder="e.g. 123e4567-e89b-12d3-a456-426614174000" 
                 className="w-full bg-secondary/50 border border-border rounded-lg py-2 px-3 text-sm font-mono focus:border-primary outline-none"
               />
             </div>

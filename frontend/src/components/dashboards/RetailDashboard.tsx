@@ -31,10 +31,11 @@ export default function RetailDashboard() {
 
   const fetchBalance = async () => {
     try {
-      const res = await fetchApi('/wallet/balance');
-      setBalance(res.data.balance);
+      const res = await fetchApi('/api/wallet/v1/wallets/me/balance');
+      const availableBalance = res.data?.available_balance ?? res.available_balance ?? 0;
+      setBalance(Number(availableBalance) || 0);
     } catch (error) {
-      console.error(error);
+      console.error("Failed to fetch balance", error);
     } finally {
       setLoading(false);
     }
@@ -44,32 +45,28 @@ export default function RetailDashboard() {
     e.preventDefault();
     setIsTransferring(true);
     try {
-      await fetchApi('/wallet/transfer', {
+      await fetchApi('/api/wallet/v1/transfers', {
         method: 'POST',
-        body: JSON.stringify({
-          toPhone: transferPhone,
-          amount: parseFloat(transferAmount),
-          currency: 'CBDC'
-        })
+        body: JSON.stringify({ payeeWalletId: transferPhone, amount: parseFloat(transferAmount), note: 'Transfer', pin: '123456' })
       });
-      alert('Transfer successful');
+      alert(`Transfer of ${transferAmount} to ${transferPhone} successful.`);
       setTransferPhone("");
       setTransferAmount("");
       fetchBalance();
     } catch (error: any) {
-      alert(error.message || 'Transfer failed');
+      alert(error.message || "Transfer failed");
     } finally {
       setIsTransferring(false);
     }
   };
 
   const handleApplyLoan = async () => {
-    const amount = prompt("Enter loan amount requested:");
-    if (!amount) return;
+    const amountStr = prompt("Enter loan amount requested:");
+    if (!amountStr) return;
     try {
-      await fetchApi('/bank/loans/apply', {
+      await fetchApi('/api/wallet/v1/loans/apply', {
         method: 'POST',
-        body: JSON.stringify({ amount: parseFloat(amount) })
+        body: JSON.stringify({ amount: parseFloat(amountStr), term_months: 12 })
       });
       alert('Loan application submitted successfully and is PENDING approval.');
     } catch (error: any) {
@@ -107,7 +104,7 @@ export default function RetailDashboard() {
           </div>
           
           <div className="text-5xl font-display font-semibold text-foreground tracking-tight mb-8">
-            {loading ? <span className="animate-pulse bg-secondary text-transparent rounded">0000.00</span> : `$${balance?.toFixed(2) || '0.00'}`}
+            {loading ? <span className="animate-pulse bg-secondary text-transparent rounded">0000.00</span> : `Rp${balance?.toFixed(2) || '0.00'}`}
           </div>
 
           <div className="h-[120px] w-full -ml-4">
@@ -146,7 +143,7 @@ export default function RetailDashboard() {
                 type="text" 
                 value={transferPhone}
                 onChange={(e) => setTransferPhone(e.target.value)}
-                placeholder="081234..." 
+                placeholder="Payee Wallet ID" 
                 className="w-full bg-secondary/50 border border-border rounded-lg py-2 px-3 text-sm font-mono focus:border-primary outline-none"
                 required
               />
@@ -197,7 +194,7 @@ export default function RetailDashboard() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-mono font-medium text-primary">+ $500.00</p>
+              <p className="text-sm font-mono font-medium text-primary">+ Rp500.00</p>
               <p className="text-xs font-mono text-muted-foreground">CBDC</p>
             </div>
           </div>
@@ -213,7 +210,7 @@ export default function RetailDashboard() {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm font-mono font-medium text-foreground">- $120.00</p>
+              <p className="text-sm font-mono font-medium text-foreground">- Rp120.00</p>
               <p className="text-xs font-mono text-muted-foreground">CBDC</p>
             </div>
           </div>

@@ -1,34 +1,95 @@
 @import "tailwindcss";
 
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    /* Light Mode Colors - Modern Trust / Clean Finance */
+    --background: #f8fafc; /* Slate 50 */
+    --foreground: #0f172a; /* Slate 900 */
+    
+    --card: #ffffff; /* White */
+    --card-foreground: #0f172a;
+    
+    --popover: #ffffff;
+    --popover-foreground: #0f172a;
+    
+    --primary: #2563eb; /* Blue 600 */
+    --primary-foreground: #ffffff;
+    
+    --secondary: #e2e8f0; /* Slate 200 */
+    --secondary-foreground: #0f172a;
+    
+    --muted: #f1f5f9; /* Slate 100 */
+    --muted-foreground: #64748b; /* Slate 500 */
+    
+    --accent: #e0e7ff; /* Indigo 100 */
+    --accent-foreground: #1e3a8a; /* Indigo 900 */
+    
+    --destructive: #ef4444; /* Red 500 */
+    --destructive-foreground: #ffffff;
+    
+    --border: #e2e8f0; /* Slate 200 */
+    --input: #e2e8f0;
+    --ring: #2563eb; /* Blue 600 */
+
+    --radius-lg: 0.75rem;
+    --radius-md: 0.5rem;
+    --radius-sm: 0.25rem;
+  }
+
+  .dark {
+    /* Dark Mode Colors */
+    --background: #0f172a; /* Slate 900 */
+    --foreground: #f8fafc; /* Slate 50 */
+    
+    --card: #1e293b; /* Slate 800 */
+    --card-foreground: #f8fafc;
+    
+    --popover: #1e293b;
+    --popover-foreground: #f8fafc;
+    
+    --primary: #3b82f6; /* Blue 500 */
+    --primary-foreground: #ffffff;
+    
+    --secondary: #334155; /* Slate 700 */
+    --secondary-foreground: #f8fafc;
+    
+    --muted: #334155; /* Slate 700 */
+    --muted-foreground: #94a3b8; /* Slate 400 */
+    
+    --accent: #1e3a8a; /* Indigo 900 */
+    --accent-foreground: #e0e7ff; /* Indigo 100 */
+    
+    --destructive: #7f1d1d; /* Red 900 */
+    --destructive-foreground: #f8fafc;
+    
+    --border: #334155; /* Slate 700 */
+    --input: #334155;
+    --ring: #3b82f6; /* Blue 500 */
+  }
+}
+
 @theme {
-  /* Colors - Luxury Minimal / Industrial Finance */
-  --color-background: #09090b; /* Zinc 950 / Obsidian Black */
-  --color-foreground: #fafafa; /* Zinc 50 */
-  
-  --color-card: #18181b; /* Zinc 900 */
-  --color-card-foreground: #fafafa;
-  
-  --color-popover: #18181b;
-  --color-popover-foreground: #fafafa;
-  
-  --color-primary: #00ffa3; /* Cyber Green / Neon Mint */
-  --color-primary-foreground: #09090b; /* Black text on neon background */
-  
-  --color-secondary: #27272a; /* Zinc 800 */
-  --color-secondary-foreground: #fafafa;
-  
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa; /* Zinc 400 */
-  
-  --color-accent: #27272a;
-  --color-accent-foreground: #00ffa3;
-  
-  --color-destructive: #ef4444; /* Red 500 */
-  --color-destructive-foreground: #fafafa;
-  
-  --color-border: #27272a; /* Zinc 800 */
-  --color-input: #27272a;
-  --color-ring: #00ffa3;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 
   /* Typography */
   --font-sans: var(--font-inter), system-ui, sans-serif;
@@ -36,15 +97,11 @@
   --font-mono: var(--font-jetbrains-mono), monospace;
 
   /* Radius */
-  --radius-lg: 0.75rem;
-  --radius-md: 0.5rem;
-  --radius-sm: 0.25rem;
+  --radius-lg: var(--radius-lg);
+  --radius-md: var(--radius-md);
+  --radius-sm: var(--radius-sm);
 }
 
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these base styles back for backward compatibility.
-*/
 @layer base {
   *,
   ::after,
@@ -53,14 +110,11 @@
   ::file-selector-button {
     border-color: var(--color-border, currentColor);
   }
-}
 
-@layer base {
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
-    /* Improve font rendering */
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

@@ -1,4 +1,5 @@
 import mysql from 'mysql2/promise';
+import bcrypt from 'bcryptjs';
 import { config } from './config.js';
 
 // Local In-Memory Database Store for Fallback
@@ -7,6 +8,55 @@ const inMemoryStore = {
   idempotency_keys: [],
   wallet_accounts: [] // cached read-models
 };
+
+// Seed dummy staff accounts (Teller & Manager) for in-memory mode
+// These accounts exist in Central Bank DB but not in Wallet DB
+function seedStaffAccounts() {
+  const staffPassword = bcrypt.hashSync('password', 10);
+  const staffAccounts = [
+    {
+      id: 'staff-teller-001',
+      name: 'Teller SmartBank',
+      email: 'teller@test.com',
+      phone: '081100000001',
+      password_hash: staffPassword,
+      pin_hash: bcrypt.hashSync('123456', 10),
+      kyc_tier: 'VERIFIED',
+      status: 'ACTIVE',
+      role: 'TELLER',
+      created_at: new Date()
+    },
+    {
+      id: 'staff-manager-001',
+      name: 'Manager SmartBank',
+      email: 'manager@test.com',
+      phone: '081100000002',
+      password_hash: staffPassword,
+      pin_hash: bcrypt.hashSync('123456', 10),
+      kyc_tier: 'VERIFIED',
+      status: 'ACTIVE',
+      role: 'MANAGER',
+      created_at: new Date()
+    }
+  ];
+
+  for (const account of staffAccounts) {
+    // Only insert if not already present
+    if (!inMemoryStore.users.find(u => u.email === account.email)) {
+      inMemoryStore.users.push(account);
+      inMemoryStore.wallet_accounts.push({
+        wallet_id: `wal_${account.id}`,
+        user_id: account.id,
+        available_balance: 0,
+        currency: 'CBDC_IDR',
+        created_at: new Date()
+      });
+    }
+  }
+}
+
+// Run seed immediately
+seedStaffAccounts();
 
 let pool = null;
 let activeDatabaseType = 'MySQL';

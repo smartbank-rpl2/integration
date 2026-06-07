@@ -19,7 +19,8 @@ export class RolesGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest();
     // Membaca dari header x-user-role yang diteruskan oleh API Gateway
-    const userRole = request.headers['x-user-role'];
+    // ATAU fallback ke JWT payload jika diakses langsung tanpa Gateway
+    const userRole = request.headers['x-user-role'] || (request.user && request.user.role);
 
     if (!userRole) {
       throw new ForbiddenException('Akses ditolak: Tidak ada role terdeteksi.');
