@@ -7,21 +7,6 @@ SmartBank adalah sistem simulasi **Two-Tier CBDC (Central Bank Digital Currency)
 
 ---
 
-## 🏗️ Diagram Arsitektur & Alur Data
-
-Sistem beroperasi berdasarkan aturan moneter bank sentral, di mana mutasi saldo riil hanya dapat dipicu melalui permohonan aman (*payment request* / *transfer*) ke Central Bank Core:
-
-```mermaid
-graph TD
-    Client[Wallet Frontend - Port 6969] -->|REST API & JWT| WalletBackend[Wallet Backend - Port 6969]
-    WalletBackend -->|API Gateway Client| CBCore[Central Bank Core API - Port 3000]
-    
-    CBCore -->|Prisma ORM| MySQL[(MySQL Database - Port 3306)]
-    WalletBackend -->|MySQL Client| MySQL
-```
-
----
-
 ## 🌟 Fitur & Aturan Keuangan SmartBank
 
 Sistem moneter ini mensimulasikan operasional bank ritel yang terikat pada aturan ketat Bank Sentral:
@@ -128,7 +113,7 @@ Kedua modul terintegrasi dalam **satu database MySQL lokal** yang sama (`central
 
 ## 🚀 5. Panduan Menjalankan Proyek dengan Docker (Rekomendasi Utama)
 
-Dengan Docker Compose, Anda dapat membangun dan menjalankan seluruh ekosistem SmartBank (Database, Central Bank Core, Web UI, dan Wallet Backend) dengan satu perintah instan:
+Dengan Docker Compose, Anda dapat membangun dan menjalankan seluruh ekosistem SmartBank (Database, Central Bank Core, Frontend Next.js, dan Wallet Backend) dengan satu perintah instan:
 
 ### Langkah 1: Jalankan Docker Compose
 Buka terminal di folder root `SmartBank` dan jalankan perintah berikut:
@@ -139,19 +124,19 @@ docker compose up --build
 Perintah ini akan secara otomatis:
 1. Menyalakan database **MySQL** dan melakukan *health check* kesiapan database.
 2. Membangun container **Central Bank Core API** (NestJS), menjalankan migrasi Prisma (`migrate deploy`), menjalankan data seed moneter awal (`seed.ts`), dan mendengarkan port `3000`.
-3. Membangun container **Central Bank UI Client** (React Vite) dan mendengarkan port `5173`.
+3. Membangun container **SmartBank Frontend** (Next.js) dan mendengarkan port `3001`.
 4. Membangun container **SmartBank Wallet** (ExpressJS), menjalankan sinkronisasi tabel & alter kolom tambahan pada MySQL (`migrate.js`), dan mendengarkan port `6969`.
 
 ### Langkah 2: Buka Browser Anda
 Setelah seluruh container berstatus `running` dan sehat, Anda siap mengakses ekosistem moneter:
 *   **Aplikasi Dompet Retail Utama (SmartBank Wallet):** Buka **[http://localhost:6969](http://localhost:6969)**
 *   **Dokumentasi API Swagger (Interactive API Wallet):** Buka **[http://localhost:6969/api-docs](http://localhost:6969/api-docs)**
-*   **Central Bank Test Client (UI Developer):** Buka **[http://localhost:5173](http://localhost:5173)**
+*   **SmartBank Frontend (UI Pengguna):** Buka **[http://localhost:3001](http://localhost:3001)**
 *   **Health Check API Central Bank:** Akses **[http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health)**
 
 ---
 
-## 🛠️ 6. Panduan Menjalankan Proyek secara Manual (Alternatif Non-Docker)
+## 🛠️ 6. Panduan Menjalankan Proyek secara Manual (Tanpa Docker)
 
 Jika Anda ingin menjalankan secara lokal tanpa Docker, ikuti langkah-langkah di bawah:
 
@@ -181,23 +166,70 @@ npm run cb:db-migrate --prefix Wallet
 ```
 
 ### Langkah 4: Jalankan Semua Server Aplikasi secara Manual
-Buka 3 terminal terpisah di folder root:
+Buka 4 terminal terpisah di folder root:
 1.  **Jalankan Central Bank Core (API - Port 3000):**
     ```bash
     npm run start:cb
     ```
-2.  **Jalankan SmartBank Wallet (Client - Port 6969):**
-    ```bash
-    npm run start:wallet
-    ```
-3.  **Jalankan Central Bank Test Client (UI - Port 5173):**
+2.  **Jalankan SmartBank Frontend (Next.js UI - Port 3001):**
     ```bash
     npm run start:cb-ui
     ```
+3.  **Jalankan SmartBank Wallet (Backend - Port 6969):**
+    ```bash
+    npm run start:wallet
+    ```
+
+### Langkah 5: Akses Aplikasi
+Setelah semua server berjalan:
+*   **SmartBank Wallet Backend:** [http://localhost:6969](http://localhost:6969)
+*   **Swagger API Docs:** [http://localhost:6969/api-docs](http://localhost:6969/api-docs)
+*   **SmartBank Frontend (UI):** [http://localhost:3001](http://localhost:3001)
+*   **Central Bank Health:** [http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health)
 
 ---
 
-## 🧪 7. Pengujian Integrasi Otomatis (E2E Test)
+## 👤 7. Akun Seed & Cara Pendaftaran
+
+### Sistem Akun (Auto-Generated oleh Seed)
+Seed script (`Central-Bank/prisma/seed.ts`) membuat akun sistem moneter berikut secara otomatis:
+
+| Account Code | Type | Initial Balance |
+|-------------|------|-----------------|
+| CENTRAL_RESERVE | Reserve | Rp 1.000.000.000 |
+| LOAN_POOL_ACCOUNT | Loan Pool | Rp 10.000.000 |
+| FEE_BANK | System Fee | Rp 0 |
+| FEE_GATEWAY | System Fee | Rp 0 |
+| FEE_MARKETPLACE | System Fee | Rp 0 |
+| FEE_POS | System Fee | Rp 0 |
+| FEE_SUPPLIER | System Fee | Rp 0 |
+| FEE_LOGISTICS | System Fee | Rp 0 |
+| TAX_SINK | Tax Collection | Rp 0 |
+
+### Cara Pendaftaran Pengguna Baru
+**Tidak ada akun seed untuk pengguna.** Setiap pengguna harus mendaftar sendiri melalui API atau frontend:
+
+1. **Via API (curl):**
+```bash
+curl -X POST http://localhost:6969/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Nama Lengkap",
+    "email": "user@example.com",
+    "phone": "081234567890",
+    "password": "securepassword123",
+    "pin": "123456"
+  }'
+```
+
+2. **Via Frontend:** Buka [http://localhost:6969](http://localhost:6969) atau [http://localhost:3001](http://localhost:3001) dan klik "Daftar".
+
+### Saldo Awal Pengguna Baru
+Setiap pengguna yang berhasil mendaftar akan secara otomatis mendapatkan saldo awal sebesar **Rp 50.000** dari pool Bank Sentral.
+
+---
+
+## 🧪 8. Pengujian Integrasi Otomatis (E2E Test)
 
 Anda dapat memvalidasi seluruh alur kerja microservices secara otomatis menggunakan skrip pengujian E2E yang telah disediakan:
 
@@ -209,3 +241,68 @@ Anda dapat memvalidasi seluruh alur kerja microservices secara otomatis mengguna
    ```
 3. Skrip akan mengeksekusi 8 langkah skenario moneter terintegrasi dan memverifikasi integritas audit ledger moneter. Jika sukses, Anda akan melihat pesan:
    `🎉 ALL E2E INTEGRATION TESTS PASSED SUCCESSFULLY! SmartBank E-Wallet and Central Bank Core are perfectly integrated as microservices.`
+
+### Skenario Test:
+1. ✅ User Registration (pendaftaran pengguna baru)
+2. ✅ User Login (login dan mendapatkan JWT token)
+3. ✅ Initial Balance Check (verifikasi saldo awal Rp 50.000)
+4. ✅ Loan Application (pengajuan Kredit UMKM Rp 10.000)
+5. ✅ Loan Disbursement (pencairan otomatis ke wallet - saldo menjadi Rp 60.000)
+6. ✅ Loan Repayment (pembayaran cicilan Rp 5.500)
+7. ✅ QR/Invoice Payment (pembayaran tagihan merchant)
+8. ✅ Transaction History (mutasi rekening/ledger audit trail)
+
+---
+
+## 🔧 9. Command Reference (Package Scripts)
+
+| Command | Description |
+|---------|-------------|
+| `npm run start:cb` | Start Central Bank Core API (Port 3000) |
+| `npm run start:wallet` | Start SmartBank Wallet Backend (Port 6969) |
+| `npm run start:cb-ui` | Start SmartBank Frontend Next.js (Port 3001) |
+| `npm run cb:generate` | Generate Prisma Client |
+| `npm run cb:db-migrate` | Run Prisma migrations for Central Bank |
+| `npm run cb:db-seed` | Seed system accounts and monetary data |
+
+---
+
+## 📁 Struktur Direktori
+
+```
+integration/
+├── Central-Bank/          # NestJS Backend (Tier-1)
+│   ├── prisma/           # Schema & Seed
+│   └── src/              # Core modules (auth, wallets, loans, etc.)
+├── Wallet/               # Express.js Backend (Tier-2)
+│   ├── src/              # Controllers, services, middleware
+│   └── postman/          # Postman collections
+├── frontend/             # Next.js Frontend (Port 3001)
+│   └── src/              # React components
+├── Gateway/              # API Gateway (optional)
+├── context/              # Project context & documentation
+├── scratch/              # Testing scripts
+│   └── test_integration.js  # E2E test suite
+├── docker-compose.yml    # Docker orchestration
+└── README.md             # This file
+```
+
+---
+
+## 🏗️ Diagram Arsitektur & Alur Data
+
+Sistem beroperasi berdasarkan aturan moneter bank sentral, di mana mutasi saldo riil hanya dapat dipicu melalui permohonan aman (*payment request* / *transfer*) ke Central Bank Core:
+
+```mermaid
+graph TD
+    Client[Wallet Frontend - Port 3001] -->|HTTP| WalletUI[SmartBank UI]
+    Client2[Wallet Backend - Port 6969] -->|REST API & JWT| WalletBackend[Wallet Backend - Port 6969]
+    WalletBackend -->|API Gateway Client| CBCore[Central Bank Core API - Port 3000]
+    
+    CBCore -->|Prisma ORM| MySQL[(MySQL Database - Port 3306)]
+    WalletBackend -->|MySQL Client| MySQL
+```
+
+---
+
+*Proyek ini adalah simulasi akademis untuk mata kuliah RPL 2. Tidak dikonfigurasi untuk produksi moneter perbankan sesungguhnya.*
