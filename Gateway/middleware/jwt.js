@@ -21,7 +21,7 @@ export const jwtMiddleware = (req, res, next) => {
   
   try {
     // Note: In real app, secret should match what Central-Bank/Wallet uses
-    const secret = process.env.JWT_SECRET || 'fallback_secret_key';
+    const secret = process.env.JWT_SECRET || 'supersecret-cbdc-smartbank-wallet-key-2026';
     const decoded = jwt.verify(token, secret);
     
     // Pass user info to downstream via headers
