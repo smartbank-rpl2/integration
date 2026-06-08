@@ -5,17 +5,19 @@ services:
     image: mysql:8.0
     container_name: smartbank-mysql
     command: --default-authentication-plugin=mysql_native_password
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-in-production}
       MYSQL_DATABASE: central_bank_core
       MYSQL_USER: central_bank
-      MYSQL_PASSWORD: central_bank_password
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me-in-production}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "central_bank", "-pcentral_bank_password"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "central_bank", "-p${MYSQL_PASSWORD:-change-me-in-production}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -27,9 +29,11 @@ services:
     container_name: smartbank-central-bank
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
-      DATABASE_URL: "mysql://central_bank:central_bank_password@mysql:3306/central_bank_core"
-      JWT_SECRET: "change-me-for-development"
+      DATABASE_URL: ${CB_DATABASE_URL:-mysql://central_bank:change-me@mysql:3306/central_bank_core}
+      JWT_SECRET: ${CB_JWT_SECRET:-change-me-in-production}
       PORT: 3000
       TOTAL_MONEY_SUPPLY: 1000000000
       INITIAL_USER_BALANCE: 50000
@@ -53,8 +57,10 @@ services:
     container_name: smartbank-central-bank-ui
     ports:
       - "5173:5173"
+    env_file:
+      - .env
     environment:
-      VITE_API_BASE_URL: "http://localhost:3000/api/v1"
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
     depends_on:
       - central-bank
 
@@ -65,22 +71,26 @@ services:
     container_name: smartbank-wallet
     ports:
       - "6969:6969"
+    env_file:
+      - .env
     environment:
-      PORT: 6969
-      NODE_ENV: development
-      JWT_SECRET: "change-me-for-development"
+      PORT: ${WALLET_PORT:-6969}
+      NODE_ENV: ${WALLET_NODE_ENV:-development}
+      JWT_SECRET: ${WALLET_JWT_SECRET:-change-me-in-production}
       JWT_ACCESS_EXPIRES: 3600
       JWT_REFRESH_EXPIRES: 604800
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: central_bank
-      DB_PASSWORD: central_bank_password
+      DB_PASSWORD: ${MYSQL_PASSWORD:-change-me-in-production}
       DB_NAME: central_bank_core
       USE_IN_MEMORY_DB: "false"
-      CENTRAL_BANK_CORE_URL: "http://central-bank:3000"
+      CENTRAL_BANK_CORE_URL: ${CENTRAL_BANK_CORE_URL:-http://central-bank:3000}
       MOCK_CENTRAL_BANK: "false"
       COOLDOWN_SECONDS: 10
       DAILY_LIMIT_COUNT: 10
+      CORS_ALLOWED_ORIGINS: ${WALLET_CORS_ORIGINS:-http://localhost:3001,http://localhost:6969}
+      ENABLE_STAFF_SEED: ${ENABLE_STAFF_SEED:-false}
     depends_on:
       mysql:
         condition: service_healthy

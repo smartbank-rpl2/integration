@@ -33,6 +33,10 @@ try {
 // 2.  Seed Staff Accounts to MySQL
 // ─────────────────────────────────────────────────────────────
 async function seedStaffAccountsToMySQL() {
+  if (!config.security.enableStaffSeed) {
+    console.log('ℹ️  Staff account seeding disabled (ENABLE_STAFF_SEED=false)');
+    return;
+  }
   const staffPassword = bcrypt.hashSync('password', 10);
   const pinHash = bcrypt.hashSync('123456', 10);
   const staffAccounts = [

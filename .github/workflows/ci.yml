@@ -1,0 +1,163 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Central-Bank (NestJS)
+  # ─────────────────────────────────────────────────────────────
+  central-bank:
+    name: Central-Bank (lint + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Central-Bank
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: central_bank_core
+          MYSQL_USER: central_bank
+          MYSQL_PASSWORD: central_bank_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: Central-Bank/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prisma generate
+        run: npx prisma generate
+        env:
+          DATABASE_URL: mysql://central_bank:central_bank_password@127.0.0.1:3306/central_bank_core
+
+      - name: Run Prisma migrate (test migrations)
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: mysql://central_bank:central_bank_password@127.0.0.1:3306/central_bank_core
+
+      - name: Run seed data
+        run: npx ts-node prisma/seed.ts
+        env:
+          DATABASE_URL: mysql://central_bank:central_bank_password@127.0.0.1:3306/central_bank_core
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test -- --passWithNoTests
+        env:
+          DATABASE_URL: mysql://central_bank:central_bank_password@127.0.0.1:3306/central_bank_core
+          JWT_SECRET: test-jwt-secret-not-real
+          PORT: 3000
+
+      - name: Build
+        run: npm run build
+
+  # ─────────────────────────────────────────────────────────────
+  # Wallet (Express)
+  # ─────────────────────────────────────────────────────────────
+  wallet:
+    name: Wallet (lint + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Wallet
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: central_bank_core
+          MYSQL_USER: central_bank
+          MYSQL_PASSWORD: central_bank_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: Wallet/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test -- --passWithNoTests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_USER: central_bank
+          DB_PASSWORD: central_bank_password
+          DB_NAME: central_bank_core
+          JWT_SECRET: test-jwt-secret-not-real
+          USE_IN_MEMORY_DB: 'false'
+
+      - name: Build (syntax check)
+        run: node --check src/app.js || npx eslint src/app.js
+
+  # ─────────────────────────────────────────────────────────────
+  # Frontend (Next.js)
+  # ─────────────────────────────────────────────────────────────
+  frontend:
+    name: Frontend (lint + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

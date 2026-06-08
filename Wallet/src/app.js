@@ -25,9 +25,15 @@ const swaggerDocument = JSON.parse(
 
 const app = express();
 
-// Global Middlewares
-app.use(cors());
-app.use(express.json());
+// CORS — explicit allowlist only (no wildcard)
+app.use(cors({
+  origin: config.cors.allowedOrigins,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'x-user-role', 'x-request-id'],
+  credentials: true,
+  maxAge: 86400,
+}));
+app.use(express.json({ limit: '100kb' }));
 app.use(express.static('src/public'));
 
 // Serve Interactive Swagger API Documentation
@@ -60,11 +66,19 @@ app.post('/api/v1/auth/login', authController.login);
 app.use('/api/v1/wallets/me', authMiddleware, requireRole('WALLET_USER'));
 app.get('/api/v1/wallets/me/balance', walletController.getBalance);
 app.get('/api/v1/wallets/me/transactions', walletController.getTransactions);
-// Testing Helper: Auto-generates a mock invoice to test QR payment flow
-app.post('/api/v1/wallets/me/invoice/generate-test', walletController.generateTestInvoice);
-app.post('/api/v1/wallets/me/topup', walletController.topUp);
-app.post('/api/v1/wallets/me/withdraw', walletController.withdraw);
-app.post('/api/v1/wallets/me/claim-stimulus', walletController.claimStimulus);
+
+// P0 Security: Gate test invoice helper to development environment only
+if (config.nodeEnv !== 'production') {
+  app.post('/api/v1/wallets/me/invoice/generate-test', walletController.generateTestInvoice);
+}
+
+// P0 Security: topup/withdraw require TELLER role + PIN validation
+app.post('/api/v1/wallets/me/topup', requireRole('TELLER'), pinMiddleware, walletController.topUp);
+app.post('/api/v1/wallets/me/withdraw', requireRole('TELLER'), pinMiddleware, walletController.withdraw);
+
+// P0 Security: claim-stimulus requires PIN validation (WALLET_USER can claim but must provide PIN)
+app.post('/api/v1/wallets/me/claim-stimulus', pinMiddleware, walletController.claimStimulus);
+
 app.put('/api/v1/wallets/me/profile', walletController.updateProfile);
 app.put('/api/v1/wallets/me/security', walletController.updateSecurity);
 app.put('/api/v1/wallets/me/upgrade', walletController.upgradeAccount);

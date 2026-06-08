@@ -18,11 +18,19 @@ export const config = {
     useInMemory: process.env.USE_IN_MEMORY_DB === 'true',
   },
   centralBank: {
-      url: process.env.CENTRAL_BANK_CORE_URL || 'http://localhost:3000',
-      mock: process.env.MOCK_CENTRAL_BANK === 'true',
-    },
+    url: process.env.CENTRAL_BANK_CORE_URL || 'http://localhost:3000',
+    mock: process.env.MOCK_CENTRAL_BANK === 'true',
+  },
   cbdc: {
     cooldownSeconds: parseInt(process.env.COOLDOWN_SECONDS || '10', 10),
     dailyLimitCount: parseInt(process.env.DAILY_LIMIT_COUNT || '10', 10),
-  }
+  },
+  security: {
+    enableStaffSeed: process.env.ENABLE_STAFF_SEED === 'true',
+  },
+  cors: {
+    allowedOrigins: process.env.CORS_ALLOWED_ORIGINS
+      ? process.env.CORS_ALLOWED_ORIGINS.split(',').map((o) => o.trim())
+      : ['http://localhost:3001', 'http://localhost:6969', 'http://localhost:5173'],
+  },
 };
