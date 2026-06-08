@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 export const config = {
-  port: parseInt(process.env.PORT || '3000', 10),
+  port: parseInt(process.env.PORT || '6969', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   jwt: {
     secret: process.env.JWT_SECRET || 'supersecret-cbdc-smartbank-wallet-key-2026',
@@ -18,9 +18,9 @@ export const config = {
     useInMemory: process.env.USE_IN_MEMORY_DB === 'true',
   },
   centralBank: {
-    url: process.env.CENTRAL_BANK_CORE_URL || 'http://localhost:8080',
-    mock: process.env.MOCK_CENTRAL_BANK === 'true',
-  },
+      url: process.env.CENTRAL_BANK_CORE_URL || 'http://localhost:3000',
+      mock: process.env.MOCK_CENTRAL_BANK === 'true',
+    },
   cbdc: {
     cooldownSeconds: parseInt(process.env.COOLDOWN_SECONDS || '10', 10),
     dailyLimitCount: parseInt(process.env.DAILY_LIMIT_COUNT || '10', 10),

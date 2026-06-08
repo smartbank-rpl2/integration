@@ -126,7 +126,7 @@ model User {
   kycTier      KycTier         @default(BASIC) @map("kyc_tier")
   status       UserStatus      @default(ACTIVE)
   createdAt    DateTime        @default(now()) @map("created_at")
-  updatedAt    DateTime        @updatedAt @map("updated_at")
+  updatedAt    DateTime        @default(now()) @updatedAt @map("updated_at")
   wallets      WalletAccount[]
 
   // Extra fields for Wallet compatibility
@@ -146,7 +146,7 @@ model WalletAccount {
   holdBalance        BigInt          @default(0) @map("hold_balance")
   status             AccountStatus   @default(ACTIVE)
   createdAt          DateTime        @default(now()) @map("created_at")
-  updatedAt          DateTime        @updatedAt @map("updated_at")
+  updatedAt          DateTime        @default(now()) @updatedAt @map("updated_at")
   user               User?           @relation(fields: [userId], references: [id])
   paidTransactions   Transaction[]   @relation("PayerWallet")
   receivedTransactions Transaction[] @relation("PayeeWallet")
@@ -301,7 +301,7 @@ model IdempotencyKey {
   status          IdempotencyStatus @default(PROCESSING)
   lockedUntil     DateTime?         @map("locked_until")
   createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  updatedAt       DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@unique([idempotencyKey, route, actorId])
   @@map("idempotency_keys")

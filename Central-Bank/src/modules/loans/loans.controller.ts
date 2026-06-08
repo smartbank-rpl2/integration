@@ -21,10 +21,25 @@ export class LoansController {
   ) {}
 
   @Post('apply')
-  async apply(@Body() dto: ApplyLoanDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
-    const wallet = await this.wallets.getPrimaryWallet(user.sub);
-    return this.loans.applyLoan(wallet.id, this.money.parse(dto.amount));
-  }
+    async apply(@Body() dto: ApplyLoanDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
+      const wallet = await this.wallets.getPrimaryWallet(user.sub);
+      const loanResult = await this.loans.applyLoan(wallet.id, this.money.parse(dto.amount));
+    
+      // Disburse loan immediately after creation
+      const settlementResult = await this.settlement.settleLoanApproval({
+        loanId: (loanResult as { loan_id: string }).loan_id,
+        requestId: requestId(req),
+        idempotency: {
+          key: requireIdempotencyKey(req),
+          route: `POST /api/v1/loans/apply`,
+          actorId: user.sub,
+          requestHash: requestHash({ amount: dto.amount }),
+        },
+        actorUserId: user.sub,
+      });
+    
+      return Object.assign(loanResult, settlementResult);
+    }
 
   @Post(':id/repay')
   repay(@Param('id') id: string, @Body() dto: RepayLoanDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
