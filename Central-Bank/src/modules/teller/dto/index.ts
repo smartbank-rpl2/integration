@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, Matches, IsOptional } from 'class-validator';
 
 export class TellerActionDto {
   @IsString()
@@ -9,10 +9,18 @@ export class TellerActionDto {
   @IsNotEmpty()
   @Matches(/^\d+$/, { message: 'Amount must be a numeric string' })
   amount: string;
+
+  @IsOptional()
+  @IsString()
+  reasonCode?: string;
 }
 
 export class KycActionDto {
   @IsString()
   @IsNotEmpty()
   userId: string;
+
+  @IsOptional()
+  @IsString()
+  reasonCode?: string;
 }

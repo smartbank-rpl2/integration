@@ -354,6 +354,7 @@ export class SettlementService {
     idempotency: IdempotencyInput;
     requestId: string;
     actorUserId: string;
+    reasonCode?: string;
   }) {
     return this.withDeadlockRetry(() =>
       this.prisma.$transaction(async (tx) => {
@@ -375,7 +376,7 @@ export class SettlementService {
         await tx.transaction.create({
           data: {
             id: transactionId,
-            transactionType: 'INITIAL_DISTRIBUTION',
+            transactionType: 'TOP_UP',
             status: 'SETTLED',
             sourceApp: 'CENTRAL_BANK_TELLER',
             payerWalletId: reserve.id,
@@ -391,6 +392,18 @@ export class SettlementService {
           transactionId,
           entries: await this.applyEntries(tx, entries),
         });
+
+        await this.audit.record({
+          tx,
+          actorUserId: input.actorUserId,
+          serviceName: 'centralbank-core',
+          action: 'TELLER_TOP_UP_SETTLED',
+          targetType: 'wallet',
+          targetId: wallet.id,
+          requestId: input.requestId,
+          reasonCode: input.reasonCode ?? 'CASH_TOP_UP',
+          metadata: asJson({ transaction_id: transactionId, amount: input.amount }),
+        });
         
         const response = { transaction_id: transactionId, status: 'SETTLED', amount: input.amount };
         await this.idempotency.complete(tx, { ...input.idempotency, responseBody: asJson(response) });
@@ -405,6 +418,7 @@ export class SettlementService {
     idempotency: IdempotencyInput;
     requestId: string;
     actorUserId: string;
+    reasonCode?: string;
   }) {
     return this.withDeadlockRetry(() =>
       this.prisma.$transaction(async (tx) => {
@@ -426,7 +440,7 @@ export class SettlementService {
         await tx.transaction.create({
           data: {
             id: transactionId,
-            transactionType: 'TRANSFER',
+            transactionType: 'WITHDRAWAL',
             status: 'SETTLED',
             sourceApp: 'CENTRAL_BANK_TELLER',
             payerWalletId: wallet.id,
@@ -442,6 +456,18 @@ export class SettlementService {
           transactionId,
           entries: await this.applyEntries(tx, entries),
         });
+
+        await this.audit.record({
+          tx,
+          actorUserId: input.actorUserId,
+          serviceName: 'centralbank-core',
+          action: 'TELLER_WITHDRAWAL_SETTLED',
+          targetType: 'wallet',
+          targetId: wallet.id,
+          requestId: input.requestId,
+          reasonCode: input.reasonCode ?? 'CASH_WITHDRAWAL',
+          metadata: asJson({ transaction_id: transactionId, amount: input.amount }),
+        });
         
         const response = { transaction_id: transactionId, status: 'SETTLED', amount: input.amount };
         await this.idempotency.complete(tx, { ...input.idempotency, responseBody: asJson(response) });
@@ -455,6 +481,7 @@ export class SettlementService {
     idempotency: IdempotencyInput;
     requestId: string;
     actorUserId: string;
+    reasonCode?: string;
   }) {
     return this.withDeadlockRetry(() =>
       this.prisma.$transaction(async (tx) => {
@@ -506,6 +533,18 @@ export class SettlementService {
             { accountId: loanPool.id, direction: 'DEBIT', amount: loan.principal, description: 'Loan disbursement' },
             { accountId: loan.borrowerWalletId, direction: 'CREDIT', amount: loan.principal, description: 'Loan disbursement' },
           ]),
+        });
+
+        await this.audit.record({
+          tx,
+          actorUserId: input.actorUserId,
+          serviceName: 'centralbank-core',
+          action: 'LOAN_APPROVED_AND_DISBURSED',
+          targetType: 'loan',
+          targetId: loan.id,
+          requestId: input.requestId,
+          reasonCode: input.reasonCode ?? 'LOAN_APPROVED',
+          metadata: asJson({ transaction_id: transactionId, principal: loan.principal }),
         });
         
         const response = {

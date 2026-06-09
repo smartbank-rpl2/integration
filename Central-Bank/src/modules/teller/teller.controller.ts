@@ -22,8 +22,13 @@ export class TellerController {
   }
 
   @Post('kyc/verify')
-  async verifyKyc(@Body() dto: KycActionDto) {
-    return this.teller.verifyKyc(dto.userId);
+  async verifyKyc(@Body() dto: KycActionDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
+    return this.teller.verifyKyc({
+      userId: dto.userId,
+      actorUserId: user.sub,
+      requestId: requestId(req),
+      reasonCode: dto.reasonCode,
+    });
   }
 
   @Post('top-up')
@@ -34,6 +39,7 @@ export class TellerController {
       actorUserId: user.sub,
       requestId: requestId(req),
       idempotencyKey: requireIdempotencyKey(req),
+      reasonCode: dto.reasonCode,
     });
   }
 
@@ -45,6 +51,7 @@ export class TellerController {
       actorUserId: user.sub,
       requestId: requestId(req),
       idempotencyKey: requireIdempotencyKey(req),
+      reasonCode: dto.reasonCode,
     });
   }
 }

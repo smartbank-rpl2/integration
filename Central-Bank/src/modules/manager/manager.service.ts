@@ -5,6 +5,7 @@ import { AppError } from '../../common/app-error';
 import { ErrorCode } from '../../common/error-codes';
 import { WalletAccountService } from '../wallets/wallet-account.service';
 import { AccountStatus } from '@prisma/client';
+import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
 export class ManagerService {
@@ -12,21 +13,60 @@ export class ManagerService {
     private readonly prisma: PrismaService,
     private readonly settlement: SettlementService,
     private readonly wallets: WalletAccountService,
+    private readonly audit: AuditLogService,
   ) {}
 
-  async suspendUser(userId: string) {
-    const wallet = await this.wallets.getPrimaryWallet(userId);
-    return this.prisma.walletAccount.update({
-      where: { id: wallet.id },
-      data: { status: AccountStatus.FROZEN },
+  async suspendUser(input: {
+    userId: string;
+    actorUserId: string;
+    requestId: string;
+    reasonCode?: string;
+  }) {
+    const wallet = await this.wallets.getPrimaryWallet(input.userId);
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.walletAccount.update({
+        where: { id: wallet.id },
+        data: { status: AccountStatus.FROZEN },
+      });
+      await this.audit.record({
+        tx,
+        actorUserId: input.actorUserId,
+        serviceName: 'centralbank-core',
+        action: 'USER_WALLET_SUSPENDED',
+        targetType: 'wallet',
+        targetId: wallet.id,
+        requestId: input.requestId,
+        reasonCode: input.reasonCode ?? 'SUSPICIOUS_ACTIVITY',
+        metadata: { user_id: input.userId },
+      });
+      return updated;
     });
   }
 
-  async activateUser(userId: string) {
-    const wallet = await this.wallets.getPrimaryWallet(userId);
-    return this.prisma.walletAccount.update({
-      where: { id: wallet.id },
-      data: { status: AccountStatus.ACTIVE },
+  async activateUser(input: {
+    userId: string;
+    actorUserId: string;
+    requestId: string;
+    reasonCode?: string;
+  }) {
+    const wallet = await this.wallets.getPrimaryWallet(input.userId);
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.walletAccount.update({
+        where: { id: wallet.id },
+        data: { status: AccountStatus.ACTIVE },
+      });
+      await this.audit.record({
+        tx,
+        actorUserId: input.actorUserId,
+        serviceName: 'centralbank-core',
+        action: 'USER_WALLET_ACTIVATED',
+        targetType: 'wallet',
+        targetId: wallet.id,
+        requestId: input.requestId,
+        reasonCode: input.reasonCode ?? 'ACCOUNT_REACTIVATED',
+        metadata: { user_id: input.userId },
+      });
+      return updated;
     });
   }
 
@@ -35,11 +75,13 @@ export class ManagerService {
     actorUserId: string;
     requestId: string;
     idempotencyKey: string;
+    reasonCode?: string;
   }) {
     return this.settlement.settleLoanApproval({
       loanId: input.loanId,
       actorUserId: input.actorUserId,
       requestId: input.requestId,
+      reasonCode: input.reasonCode,
       idempotency: {
         key: input.idempotencyKey,
         route: 'POST /api/v1/manager/loans/approve',
@@ -49,14 +91,32 @@ export class ManagerService {
     });
   }
 
-  async rejectLoan(loanId: string) {
-    const loan = await this.prisma.loan.findUnique({ where: { id: loanId } });
+  async rejectLoan(input: {
+    loanId: string;
+    actorUserId: string;
+    requestId: string;
+    reasonCode?: string;
+  }) {
+    const loan = await this.prisma.loan.findUnique({ where: { id: input.loanId } });
     if (!loan) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan tidak ditemukan');
     if (loan.status !== 'PENDING') throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan tidak dalam status PENDING');
 
-    return this.prisma.loan.update({
-      where: { id: loanId },
-      data: { status: 'REJECTED' },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.loan.update({
+        where: { id: input.loanId },
+        data: { status: 'REJECTED' },
+      });
+      await this.audit.record({
+        tx,
+        actorUserId: input.actorUserId,
+        serviceName: 'centralbank-core',
+        action: 'LOAN_REJECTED',
+        targetType: 'loan',
+        targetId: input.loanId,
+        requestId: input.requestId,
+        reasonCode: input.reasonCode ?? 'LOAN_REJECTED',
+      });
+      return updated;
     });
   }
 }

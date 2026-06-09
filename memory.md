@@ -87,3 +87,10 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Menambahkan regression test object ownership, unauthorized payer payment request, dan loan apply tanpa auto-disbursement.
   - Validasi: `nest build` PASS, TypeScript `--noEmit` PASS, regression test P0 6/6 PASS, syntax check Wallet PASS. Full Central-Bank test 8/9 suite PASS; suite RBAC lama gagal hanya karena MySQL lokal `127.0.0.1:3306` tidak berjalan. ESLint belum dapat dijalankan karena konfigurasi proyek belum dimigrasikan ke format ESLint 9.
 
+- **[2026-06-09] P1 Business Flow Cleanup & Audit Hardening:**
+  - Memisahkan tipe transaksi Teller top-up/withdrawal dari `INITIAL_DISTRIBUTION` menjadi `TOP_UP` dan `WITHDRAWAL`, termasuk Prisma schema dan migration SQL agar kuota initial distribution tidak tercampur dengan operasi teller.
+  - Menambahkan audit log dan `reasonCode` opsional/default untuk KYC verification, Teller top-up/withdrawal, Manager suspend/activate user, loan approve, dan loan reject.
+  - Merapikan route Wallet legacy `/wallets/me/topup` dan `/wallets/me/withdraw` agar menjadi self-service simulation `WALLET_USER` + PIN, bukan endpoint Teller yang terjebak dua role. Operasi teller nyata tetap melalui Central Bank `/api/v1/teller/*`.
+  - Memperbaiki kontrak transfer frontend Retail Dashboard dari `payeeWalletId` menjadi `to_wallet_id`, mengirim amount sebagai string, dan mengganti PIN hardcoded dengan input PIN.
+  - Menambahkan regression test untuk klasifikasi `TOP_UP`/`WITHDRAWAL` dan audit reason Manager suspend.
+  - Validasi: Central-Bank `tsc --noEmit` PASS, `nest build` PASS, targeted P0/P1 tests 9/9 PASS, Wallet syntax check PASS. Full Central-Bank suite 9/10 PASS; `rbac.spec.ts` masih timeout saat bootstrapping AppModule karena dependency environment/database test. Frontend `tsc --noEmit` masih gagal pada error lama di `dashboard/page.tsx` role comparison dan `next-themes/dist/types`, bukan dari perubahan transfer.

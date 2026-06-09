@@ -23,6 +23,7 @@ export default function RetailDashboard() {
   // Transfer Form State
   const [transferPhone, setTransferPhone] = useState("");
   const [transferAmount, setTransferAmount] = useState("");
+  const [transferPin, setTransferPin] = useState("");
   const [isTransferring, setIsTransferring] = useState(false);
 
   useEffect(() => {
@@ -47,11 +48,12 @@ export default function RetailDashboard() {
     try {
       await fetchApi('/api/wallet/v1/transfers', {
         method: 'POST',
-        body: JSON.stringify({ payeeWalletId: transferPhone, amount: parseFloat(transferAmount), note: 'Transfer', pin: '123456' })
+        body: JSON.stringify({ to_wallet_id: transferPhone, amount: transferAmount, note: 'Transfer', pin: transferPin })
       });
       alert(`Transfer of ${transferAmount} to ${transferPhone} successful.`);
       setTransferPhone("");
       setTransferAmount("");
+      setTransferPin("");
       fetchBalance();
     } catch (error: any) {
       alert(error.message || "Transfer failed");
@@ -138,12 +140,12 @@ export default function RetailDashboard() {
           <h2 className="font-display font-medium text-lg text-foreground mb-4">Quick Transfer</h2>
           <form onSubmit={handleTransfer} className="space-y-4 flex-1 flex flex-col justify-end">
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Recipient Phone</label>
+              <label className="text-xs font-medium text-muted-foreground">Recipient Wallet ID</label>
               <input 
                 type="text" 
                 value={transferPhone}
                 onChange={(e) => setTransferPhone(e.target.value)}
-                placeholder="Payee Wallet ID" 
+                placeholder="Payee Wallet ID"
                 className="w-full bg-secondary/50 border border-border rounded-lg py-2 px-3 text-sm font-mono focus:border-primary outline-none"
                 required
               />
@@ -155,6 +157,18 @@ export default function RetailDashboard() {
                 value={transferAmount}
                 onChange={(e) => setTransferAmount(e.target.value)}
                 placeholder="0.00" 
+                className="w-full bg-secondary/50 border border-border rounded-lg py-2 px-3 text-sm font-mono focus:border-primary outline-none"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Transaction PIN</label>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={transferPin}
+                onChange={(e) => setTransferPin(e.target.value)}
+                placeholder="6-digit PIN"
                 className="w-full bg-secondary/50 border border-border rounded-lg py-2 px-3 text-sm font-mono focus:border-primary outline-none"
                 required
               />

@@ -73,9 +73,9 @@ if (config.nodeEnv !== 'production') {
   app.post('/api/v1/wallets/me/invoice/generate-test', walletController.generateTestInvoice);
 }
 
-// P0 Security: topup/withdraw require TELLER role + PIN validation
-app.post('/api/v1/wallets/me/topup', requireRole('TELLER'), pinMiddleware, walletController.topUp);
-app.post('/api/v1/wallets/me/withdraw', requireRole('TELLER'), pinMiddleware, walletController.withdraw);
+// Legacy self-service simulation routes. Real teller operations use Central Bank /api/v1/teller/*.
+app.post('/api/v1/wallets/me/topup', pinMiddleware, walletController.topUp);
+app.post('/api/v1/wallets/me/withdraw', pinMiddleware, walletController.withdraw);
 
 // P0 Security: claim-stimulus requires PIN validation (WALLET_USER can claim but must provide PIN)
 app.post('/api/v1/wallets/me/claim-stimulus', pinMiddleware, walletController.claimStimulus);

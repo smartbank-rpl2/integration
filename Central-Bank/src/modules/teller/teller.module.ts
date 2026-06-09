@@ -5,9 +5,10 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { SettlementModule } from '../settlement/settlement.module';
 import { WalletsModule } from '../wallets/wallets.module';
 import { MoneyModule } from '../money/money.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  imports: [PrismaModule, SettlementModule, WalletsModule, MoneyModule],
+  imports: [PrismaModule, SettlementModule, WalletsModule, MoneyModule, AuditModule],
   controllers: [TellerController],
   providers: [TellerService],
 })

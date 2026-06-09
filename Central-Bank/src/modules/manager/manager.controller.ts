@@ -15,13 +15,23 @@ export class ManagerController {
   ) {}
 
   @Post('users/suspend')
-  async suspendUser(@Body() dto: ManagerUserActionDto) {
-    return this.manager.suspendUser(dto.userId);
+  async suspendUser(@Body() dto: ManagerUserActionDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
+    return this.manager.suspendUser({
+      userId: dto.userId,
+      actorUserId: user.sub,
+      requestId: requestId(req),
+      reasonCode: dto.reasonCode,
+    });
   }
 
   @Post('users/activate')
-  async activateUser(@Body() dto: ManagerUserActionDto) {
-    return this.manager.activateUser(dto.userId);
+  async activateUser(@Body() dto: ManagerUserActionDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
+    return this.manager.activateUser({
+      userId: dto.userId,
+      actorUserId: user.sub,
+      requestId: requestId(req),
+      reasonCode: dto.reasonCode,
+    });
   }
 
   @Post('loans/approve')
@@ -31,11 +41,17 @@ export class ManagerController {
       actorUserId: user.sub,
       requestId: requestId(req),
       idempotencyKey: requireIdempotencyKey(req),
+      reasonCode: dto.reasonCode,
     });
   }
 
   @Post('loans/reject')
-  async rejectLoan(@Body() dto: ManagerLoanActionDto) {
-    return this.manager.rejectLoan(dto.loanId);
+  async rejectLoan(@Body() dto: ManagerLoanActionDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
+    return this.manager.rejectLoan({
+      loanId: dto.loanId,
+      actorUserId: user.sub,
+      requestId: requestId(req),
+      reasonCode: dto.reasonCode,
+    });
   }
 }

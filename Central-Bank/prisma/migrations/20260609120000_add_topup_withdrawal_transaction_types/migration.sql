@@ -1,0 +1,12 @@
+ALTER TABLE `transactions`
+  MODIFY `transaction_type` ENUM(
+    'LOAN_POOL_FUNDING',
+    'INITIAL_DISTRIBUTION',
+    'TOP_UP',
+    'WITHDRAWAL',
+    'TRANSFER',
+    'PAYMENT',
+    'LOAN_DISBURSEMENT',
+    'LOAN_REPAYMENT',
+    'REVERSAL'
+  ) NOT NULL;

@@ -5,6 +5,7 @@ import { AppError } from '../../common/app-error';
 import { ErrorCode } from '../../common/error-codes';
 import { WalletAccountService } from '../wallets/wallet-account.service';
 import { MoneyService } from '../money/money.service';
+import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
 export class TellerService {
@@ -13,15 +14,34 @@ export class TellerService {
     private readonly settlement: SettlementService,
     private readonly wallets: WalletAccountService,
     private readonly money: MoneyService,
+    private readonly audit: AuditLogService,
   ) {}
 
-  async verifyKyc(userId: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  async verifyKyc(input: {
+    userId: string;
+    actorUserId: string;
+    requestId: string;
+    reasonCode?: string;
+  }) {
+    const user = await this.prisma.user.findUnique({ where: { id: input.userId } });
     if (!user) throw new AppError(ErrorCode.VALIDATION_ERROR, 'User tidak ditemukan');
-    
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { kycTier: 'VERIFIED' },
+
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: input.userId },
+        data: { kycTier: 'VERIFIED' },
+      });
+      await this.audit.record({
+        tx,
+        actorUserId: input.actorUserId,
+        serviceName: 'centralbank-core',
+        action: 'KYC_VERIFIED',
+        targetType: 'user',
+        targetId: input.userId,
+        requestId: input.requestId,
+        reasonCode: input.reasonCode ?? 'KYC_VERIFIED',
+      });
+      return updated;
     });
   }
 
@@ -74,6 +94,7 @@ export class TellerService {
     actorUserId: string;
     requestId: string;
     idempotencyKey: string;
+    reasonCode?: string;
   }) {
     this.money.assertPositive(input.amount);
     const wallet = await this.wallets.getPrimaryWallet(input.userId);
@@ -83,6 +104,7 @@ export class TellerService {
       amount: input.amount,
       actorUserId: input.actorUserId,
       requestId: input.requestId,
+      reasonCode: input.reasonCode,
       idempotency: {
         key: input.idempotencyKey,
         route: 'POST /api/v1/teller/top-up',
@@ -98,6 +120,7 @@ export class TellerService {
     actorUserId: string;
     requestId: string;
     idempotencyKey: string;
+    reasonCode?: string;
   }) {
     this.money.assertPositive(input.amount);
     const wallet = await this.wallets.getPrimaryWallet(input.userId);
@@ -107,6 +130,7 @@ export class TellerService {
       amount: input.amount,
       actorUserId: input.actorUserId,
       requestId: input.requestId,
+      reasonCode: input.reasonCode,
       idempotency: {
         key: input.idempotencyKey,
         route: 'POST /api/v1/teller/withdraw',
