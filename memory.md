@@ -94,3 +94,12 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Memperbaiki kontrak transfer frontend Retail Dashboard dari `payeeWalletId` menjadi `to_wallet_id`, mengirim amount sebagai string, dan mengganti PIN hardcoded dengan input PIN.
   - Menambahkan regression test untuk klasifikasi `TOP_UP`/`WITHDRAWAL` dan audit reason Manager suspend.
   - Validasi: Central-Bank `tsc --noEmit` PASS, `nest build` PASS, targeted P0/P1 tests 9/9 PASS, Wallet syntax check PASS. Full Central-Bank suite 9/10 PASS; `rbac.spec.ts` masih timeout saat bootstrapping AppModule karena dependency environment/database test. Frontend `tsc --noEmit` masih gagal pada error lama di `dashboard/page.tsx` role comparison dan `next-themes/dist/types`, bukan dari perubahan transfer.
+
+- **[2026-06-09] Frontend Design Completion (Role Dashboard Coverage):**
+  - Melengkapi dashboard role `ADMIN`/`CENTRAL_BANK_ADMIN` dengan UI Central Bank untuk monitoring supply, ledger filter, reversal transaksi, serta panel kapabilitas yang menandai endpoint yang belum tersedia agar frontend tidak menampilkan aksi palsu.
+  - Mengubah Retail Dashboard agar menggunakan balance dan transaction history nyata dari API, menurunkan grafik dari transaksi aktual, mengganti `prompt`/`alert` dengan form dan notifikasi inline, serta menambahkan alur apply loan dan repayment.
+  - Mengubah Manager Dashboard menjadi risk control center berbasis pencarian nasabah, detail wallet/status/KYC, reason code audit, suspend/activate, dan approve/reject loan berbasis Loan ID karena backend belum menyediakan daftar pending loan.
+  - Menambahkan reason code pada Teller Dashboard untuk KYC, top-up, dan withdraw agar sejalan dengan audit hardening P1.
+  - Merapikan dashboard layout: navigasi sidebar berbasis role dengan anchor tujuan nyata, dukungan role `WALLET_USER`/`RETAIL`/`CENTRAL_BANK_ADMIN`, theme toggle di topbar, dan penggantian `h-screen` menjadi `h-dvh`.
+  - Memperbaiki error frontend lama: tipe role auth, `next-themes` type import, duplikasi import Tailwind, login email field, register tanpa payload role, serta helper API typed generic dengan `NEXT_PUBLIC_API_BASE_URL`.
+  - Validasi: frontend `tsc --noEmit --incremental false` PASS, `npm run lint` PASS, dan `npm run build` PASS setelah build diberi akses jaringan untuk `next/font` Google Fonts. Browser Use tool tidak tersedia di sesi ini; smoke preview lokal tidak dapat dilanjutkan karena proses `next start` tidak menetap pada sandbox Windows.

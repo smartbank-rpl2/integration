@@ -1,159 +1,165 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuthStore } from "@/store/auth";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { LayoutDashboard, Users, CreditCard, ShieldAlert, LogOut, Menu, X, BookOpen } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  BadgeDollarSign,
+  BookOpen,
+  CreditCard,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  ScrollText,
+  ShieldAlert,
+  Users,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import OnboardingTour from "@/components/OnboardingTour";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Role, useAuthStore } from "@/store/auth";
+
+type MenuItem = { name: string; href: string; icon: React.ReactNode };
+
+const menus: Record<Role, MenuItem[]> = {
+  WALLET_USER: [
+    { name: "Ringkasan Dompet", href: "#overview", icon: <LayoutDashboard size={19} /> },
+    { name: "Transfer", href: "#transfer", icon: <CreditCard size={19} /> },
+    { name: "Pinjaman", href: "#loans", icon: <BadgeDollarSign size={19} /> },
+  ],
+  RETAIL: [
+    { name: "Ringkasan Dompet", href: "#overview", icon: <LayoutDashboard size={19} /> },
+    { name: "Transfer", href: "#transfer", icon: <CreditCard size={19} /> },
+    { name: "Pinjaman", href: "#loans", icon: <BadgeDollarSign size={19} /> },
+  ],
+  RETAIL_CUSTOMER: [
+    { name: "Ringkasan Dompet", href: "#overview", icon: <LayoutDashboard size={19} /> },
+    { name: "Transfer", href: "#transfer", icon: <CreditCard size={19} /> },
+    { name: "Pinjaman", href: "#loans", icon: <BadgeDollarSign size={19} /> },
+  ],
+  TELLER: [
+    { name: "Pencarian Nasabah", href: "#customer", icon: <LayoutDashboard size={19} /> },
+    { name: "Operasi Teller", href: "#operations", icon: <ShieldAlert size={19} /> },
+  ],
+  MANAGER: [
+    { name: "Kontrol Risiko", href: "#risk", icon: <Users size={19} /> },
+    { name: "Keputusan Pinjaman", href: "#loans", icon: <CreditCard size={19} /> },
+  ],
+  ADMIN: [
+    { name: "Pasokan Moneter", href: "#monetary", icon: <Landmark size={19} /> },
+    { name: "Ledger", href: "#ledger", icon: <ScrollText size={19} /> },
+    { name: "Reversal", href: "#reversal", icon: <ShieldAlert size={19} /> },
+  ],
+  CENTRAL_BANK_ADMIN: [
+    { name: "Pasokan Moneter", href: "#monetary", icon: <Landmark size={19} /> },
+    { name: "Ledger", href: "#ledger", icon: <ScrollText size={19} /> },
+    { name: "Reversal", href: "#reversal", icon: <ShieldAlert size={19} /> },
+  ],
+};
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, token, logout } = useAuthStore();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    if (!token || !user) {
-      router.push("/login");
-    }
+    if (!token || !user) router.push("/login");
   }, [token, user, router]);
 
-  if (!mounted || !user) return null;
+  if (!user) return null;
 
   const handleLogout = () => {
     logout();
     router.push("/");
   };
 
-  const getRoleMenu = () => {
-    switch (user.role) {
-      case "RETAIL_CUSTOMER":
-        return [
-          { name: "My Wallet", icon: <LayoutDashboard size={20} /> },
-          { name: "Transfer", icon: <CreditCard size={20} /> },
-        ];
-      case "TELLER":
-        return [
-          { name: "Teller Desk", icon: <LayoutDashboard size={20} /> },
-          { name: "KYC Verification", icon: <ShieldAlert size={20} /> },
-        ];
-      case "MANAGER":
-        return [
-          { name: "Manager Overview", icon: <LayoutDashboard size={20} /> },
-          { name: "User Management", icon: <Users size={20} /> },
-        ];
-      default:
-        return [];
-    }
-  };
-
-  const menu = getRoleMenu();
-
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Mobile Sidebar Overlay */}
+    <div className="flex min-h-dvh bg-background">
       <AnimatePresence>
         {isSidebarOpen && (
-          <motion.div
+          <motion.button
+            aria-label="Tutup menu"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsSidebarOpen(false)}
-            className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/60 md:hidden"
           />
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
       <aside
-        className={`fixed md:relative top-0 left-0 h-screen w-64 bg-card border-r border-border z-50 transition-transform flex flex-col ${
+        className={`fixed left-0 top-0 z-50 flex h-dvh w-64 flex-col border-r border-border bg-card transition-transform md:relative ${
           isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         }`}
       >
-        <div className="h-16 flex items-center justify-between px-6 border-b border-border">
-          <div className="font-display font-bold text-xl tracking-tight flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+        <div className="flex h-16 items-center justify-between border-b border-border px-6">
+          <div className="flex items-center gap-2 font-display text-xl font-bold">
+            <span className="size-3 rounded-full bg-primary" />
             SmartBank
           </div>
-          <button className="md:hidden" onClick={() => setIsSidebarOpen(false)}>
-            <X size={20} className="text-muted-foreground" />
+          <button aria-label="Tutup menu" className="rounded-lg p-2 md:hidden" onClick={() => setIsSidebarOpen(false)}>
+            <X size={20} />
           </button>
         </div>
 
-        <div className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-          <div className="text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
-            Menu
-          </div>
-          {menu.map((item) => (
-            <button
+        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6" aria-label="Navigasi dashboard">
+          <p className="mb-4 text-xs font-semibold uppercase text-muted-foreground">Menu</p>
+          {menus[user.role].map((item) => (
+            <a
               key={item.name}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              href={item.href}
+              onClick={() => setIsSidebarOpen(false)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
             >
               {item.icon}
               {item.name}
-            </button>
+            </a>
           ))}
-          
-          <div className="mt-8 mb-4 border-t border-border pt-6">
-            <div className="text-xs font-semibold text-muted-foreground mb-4 uppercase tracking-wider">
-              Help
-            </div>
-            <Link href="/guide">
-              <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-primary hover:bg-primary/10 transition-colors">
-                <BookOpen size={20} />
-                User Guide
-              </button>
+          <div className="mt-8 border-t border-border pt-6">
+            <p className="mb-4 text-xs font-semibold uppercase text-muted-foreground">Bantuan</p>
+            <Link href="/guide" className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-primary hover:bg-primary/10">
+              <BookOpen size={19} />
+              Panduan Pengguna
             </Link>
           </div>
-        </div>
+        </nav>
 
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 mb-4 px-2">
-            <div className="w-10 h-10 rounded-full bg-secondary border border-border flex items-center justify-center font-display font-semibold text-foreground">
-              {user.role.charAt(0)}
+        <div className="border-t border-border p-4">
+          <div className="mb-4 flex items-center gap-3 px-2">
+            <div className="flex size-10 items-center justify-center rounded-full border border-border bg-secondary font-display font-semibold">
+              {(user.name || user.role).charAt(0)}
             </div>
-            <div className="overflow-hidden">
-              <p className="text-sm font-medium text-foreground truncate">{user.phone}</p>
-              <p className="text-xs text-muted-foreground truncate">{user.role.replace('_', ' ')}</p>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user.name || user.email || user.phone || "Pengguna"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.role.replaceAll("_", " ")}</p>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <LogOut size={20} />
-            Secure Logout
+          <button onClick={handleLogout} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10">
+            <LogOut size={19} />
+            Keluar Aman
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
+      <div className="relative flex h-dvh flex-1 flex-col overflow-hidden">
         <OnboardingTour />
-        {/* Topbar */}
-        <header className="h-16 border-b border-border bg-background/50 backdrop-blur-md flex items-center justify-between px-6 shrink-0">
-          <button
-            className="md:hidden p-2 -ml-2 rounded-lg hover:bg-secondary text-foreground"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu size={24} />
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-background px-4 md:px-6">
+          <button aria-label="Buka menu" className="rounded-lg p-2 hover:bg-secondary md:hidden" onClick={() => setIsSidebarOpen(true)}>
+            <Menu size={22} />
           </button>
-          <div className="ml-auto flex items-center gap-4">
-            <div className="px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-mono flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-mono text-xs text-primary">
+              <span className="size-1.5 rounded-full bg-primary" />
               {user.status}
             </div>
+            <ThemeToggle />
           </div>
         </header>
-
-        {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
+          <div className="mx-auto max-w-6xl">{children}</div>
         </main>
       </div>
     </div>

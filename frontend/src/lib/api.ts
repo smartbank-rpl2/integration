@@ -1,8 +1,12 @@
 import { useAuthStore } from '@/store/auth';
 
-const BASE_URL = 'http://localhost:4000';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
 
-// Map HTTP status codes to user-friendly messages in Indonesian
+type ApiErrorPayload = {
+  error?: string | { message?: string };
+  message?: string;
+};
+
 function getHttpErrorMessage(status: number, serverMsg?: string): string {
   if (serverMsg && serverMsg.length > 0 && serverMsg !== 'Internal server error') {
     return serverMsg;
@@ -19,45 +23,38 @@ function getHttpErrorMessage(status: number, serverMsg?: string): string {
     case 502: return 'Server tidak dapat dijangkau saat ini. Pastikan semua layanan berjalan.';
     case 503: return 'Layanan sedang tidak tersedia. Silakan coba lagi dalam beberapa menit.';
     case 504: return 'Server membutuhkan waktu terlalu lama untuk merespons (Gateway Timeout). Pastikan semua server backend sudah berjalan, lalu coba lagi.';
-    default:  return `Terjadi kesalahan (${status}). Silakan coba lagi.`;
+    default: return `Terjadi kesalahan (${status}). Silakan coba lagi.`;
   }
 }
 
-export async function fetchApi(endpoint: string, options: RequestInit = {}) {
+function readServerMessage(data: ApiErrorPayload): string {
+  if (typeof data.error === 'string') return data.error;
+  return data.error?.message || data.message || '';
+}
+
+export async function fetchApi<T = unknown>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const { token, logout } = useAuthStore.getState();
-  
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
-  
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
-  }
 
-  // Idempotency-Key for POST/PUT/PATCH mutations
-  if (options.method && ['POST', 'PUT', 'PATCH'].includes(options.method.toUpperCase())) {
-    if (!headers.has('Idempotency-Key')) {
-      headers.set('Idempotency-Key', crypto.randomUUID());
-    }
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  if (options.method && ['POST', 'PUT', 'PATCH'].includes(options.method.toUpperCase()) && !headers.has('Idempotency-Key')) {
+    headers.set('Idempotency-Key', crypto.randomUUID());
   }
 
   let response: Response;
   try {
-    response = await fetch(`${BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-  } catch (networkErr: any) {
-    // Server completely unreachable (ECONNREFUSED, network offline, etc.)
-    throw new Error(
-      'Tidak dapat terhubung ke server. Pastikan semua layanan backend sudah berjalan dan coba lagi.'
-    );
+    response = await fetch(`${BASE_URL}${endpoint}`, { ...options, headers });
+  } catch {
+    throw new Error('Tidak dapat terhubung ke server. Pastikan semua layanan backend sudah berjalan dan coba lagi.');
   }
 
-  let data: any = {};
+  let data: ApiErrorPayload | Record<string, unknown> = {};
   try {
     data = await response.json();
-  } catch (e) {
-    // Not JSON — body might be empty (common on 504)
+  } catch {
+    // Body may be empty, especially on gateway timeout responses.
   }
 
   if (response.status === 401) {
@@ -65,14 +62,12 @@ export async function fetchApi(endpoint: string, options: RequestInit = {}) {
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
       window.location.href = '/login';
     }
-    const msg = data?.error?.message || data?.message || data?.error || 'Email atau password yang Anda masukkan salah.';
-    throw new Error(msg);
+    throw new Error(readServerMessage(data as ApiErrorPayload) || 'Email atau password yang Anda masukkan salah.');
   }
 
   if (!response.ok) {
-    const serverMsg = data?.error?.message || data?.message || data?.error || '';
-    throw new Error(getHttpErrorMessage(response.status, serverMsg));
+    throw new Error(getHttpErrorMessage(response.status, readServerMessage(data as ApiErrorPayload)));
   }
 
-  return data;
+  return data as T;
 }

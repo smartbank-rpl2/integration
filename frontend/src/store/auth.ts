@@ -1,10 +1,18 @@
 import { create } from 'zustand';
 
-export type Role = 'RETAIL_CUSTOMER' | 'TELLER' | 'MANAGER' | 'ADMIN';
+export type Role =
+  | 'WALLET_USER'
+  | 'RETAIL'
+  | 'RETAIL_CUSTOMER'
+  | 'TELLER'
+  | 'MANAGER'
+  | 'ADMIN'
+  | 'CENTRAL_BANK_ADMIN';
 
 export interface User {
   id: string;
-  phone: string;
+  phone?: string;
+  email?: string;
   role: Role;
   name?: string;
   status: string;

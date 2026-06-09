@@ -2,10 +2,17 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, KeyRound, Phone, Mail, User, Hash, ShieldCheck } from "lucide-react";
+import { ArrowRight, Loader2, KeyRound, Phone, Mail, User as UserIcon, Hash } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth";
+import { type User, useAuthStore } from "@/store/auth";
 import { fetchApi } from "@/lib/api";
+
+type LoginResponse = {
+  data: {
+    accessToken: string;
+    user: User;
+  };
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -16,8 +23,7 @@ export default function RegisterPage() {
     email: "",
     phone: "",
     password: "",
-    pin: "",
-    role: "RETAIL"
+    pin: ""
   });
   
   const [isLoading, setIsLoading] = useState(false);
@@ -40,7 +46,7 @@ export default function RegisterPage() {
       });
 
       // Step 2: Automatically log in
-      const loginRes = await fetchApi('/api/wallet/v1/auth/login', {
+      const loginRes = await fetchApi<LoginResponse>('/api/wallet/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: formData.email, password: formData.password })
       });
@@ -52,10 +58,10 @@ export default function RegisterPage() {
         throw new Error("Invalid response from server during auto-login");
       }
 
-      setAuth(token, user as any);
+      setAuth(token, user);
       router.push('/dashboard');
-    } catch (err: any) {
-      let errorMsg = err.message || "Registration failed. Please check your details.";
+    } catch (err) {
+      let errorMsg = err instanceof Error ? err.message : "Registration failed. Please check your details.";
       if (errorMsg.includes('Idempotency-Key dipakai') || errorMsg.includes('Email sudah terdaftar') || errorMsg.includes('Email sudah digunakan')) {
         errorMsg = "Email ini sudah terdaftar. Silakan gunakan email lain atau langsung Login ke akun Anda.";
       }
@@ -97,7 +103,7 @@ export default function RegisterPage() {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Full Name</label>
             <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
                 name="name"

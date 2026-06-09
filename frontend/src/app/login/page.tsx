@@ -2,16 +2,23 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Loader2, KeyRound, Phone } from "lucide-react";
+import { ArrowRight, Loader2, KeyRound, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuthStore } from "@/store/auth";
+import { type User, useAuthStore } from "@/store/auth";
 import { fetchApi } from "@/lib/api";
+
+type LoginResponse = {
+  data: {
+    accessToken: string;
+    user: User;
+  };
+};
 
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
   
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -23,9 +30,9 @@ export default function LoginPage() {
 
     try {
       // Step 1: Login through Gateway
-      const loginRes = await fetchApi('/api/wallet/v1/auth/login', {
+      const loginRes = await fetchApi<LoginResponse>('/api/wallet/v1/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email: phone, password }) // Note: our test script uses email for login
+        body: JSON.stringify({ email, password })
       });
 
       const token = loginRes.data.accessToken;
@@ -35,10 +42,10 @@ export default function LoginPage() {
         throw new Error("Invalid response from server");
       }
 
-      setAuth(token, user as any);
+      setAuth(token, user);
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || "Invalid phone number or password");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Email atau password tidak valid");
     } finally {
       setIsLoading(false);
     }
@@ -76,11 +83,11 @@ export default function LoginPage() {
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Email / User ID</label>
             <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="manager@test.com"
                 className="w-full bg-secondary/50 border border-border focus:border-primary rounded-lg py-2.5 pl-10 pr-4 outline-none transition-colors text-foreground font-mono"
                 required
@@ -120,7 +127,7 @@ export default function LoginPage() {
             <p><span className="text-primary font-mono">manager@test.com</span> (Manager)</p>
           </div>
           <div className="pt-2 border-t border-border/50">
-            Don't have a retail account? <a href="/register" className="text-primary font-medium hover:underline">Register Here</a>
+            Don&apos;t have a retail account? <a href="/register" className="text-primary font-medium hover:underline">Register Here</a>
           </div>
         </div>
       </motion.div>

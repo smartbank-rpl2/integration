@@ -10,18 +10,29 @@ import {
   ArrowDownLeft, 
   AlertCircle, 
   User, 
-  Mail, 
-  Phone, 
   Wallet, 
   CheckCircle2, 
   Loader2,
-  Sparkles,
-  DollarSign
+  Sparkles
 } from "lucide-react";
+
+type TellerCustomer = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  kycTier: string;
+  wallets?: Array<{ id: string; availableBalance: string | number }>;
+};
+
+type CustomerResponse = {
+  success?: boolean;
+  data?: TellerCustomer;
+};
 
 export default function TellerDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [customer, setCustomer] = useState<any>(null);
+  const [customer, setCustomer] = useState<TellerCustomer | null>(null);
   const [isLoadingKyc, setIsLoadingKyc] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
@@ -30,6 +41,7 @@ export default function TellerDashboard() {
   const [topupAmount, setTopupAmount] = useState("");
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [reasonCode, setReasonCode] = useState("TELLER_OPERATION");
 
   const presets = ["10000", "50000", "100000", "250000", "500000"];
 
@@ -43,16 +55,16 @@ export default function TellerDashboard() {
     setHasSearched(true);
     
     try {
-      const res = await fetchApi(`/api/bank/teller/customer?query=${encodeURIComponent(searchQuery.trim())}`);
+      const res = await fetchApi<CustomerResponse>(`/api/bank/teller/customer?query=${encodeURIComponent(searchQuery.trim())}`);
       if (res.success && res.data) {
         setCustomer(res.data);
       } else {
         setCustomer(null);
         throw new Error("Format respons tidak valid");
       }
-    } catch (err: any) {
+    } catch (err) {
       setCustomer(null);
-      const msg = err.message || "Nasabah tidak ditemukan atau pencarian gagal.";
+      const msg = err instanceof Error ? err.message : "Nasabah tidak ditemukan atau pencarian gagal.";
       setError(msg.includes('tidak ditemukan') || msg.includes('404') 
         ? `Nasabah dengan kata kunci "${searchQuery.trim()}" tidak ditemukan di sistem.` 
         : msg);
@@ -64,7 +76,7 @@ export default function TellerDashboard() {
   const handleRefresh = async () => {
     if (!customer?.id) return;
     try {
-      const res = await fetchApi(`/api/bank/teller/customer?query=${encodeURIComponent(customer.id)}`);
+      const res = await fetchApi<CustomerResponse>(`/api/bank/teller/customer?query=${encodeURIComponent(customer.id)}`);
       if (res.success && res.data) {
         setCustomer(res.data);
       }
@@ -81,12 +93,12 @@ export default function TellerDashboard() {
     try {
       await fetchApi("/api/bank/teller/kyc/verify", {
         method: "POST",
-        body: JSON.stringify({ userId: customer.id }),
+        body: JSON.stringify({ userId: customer.id, reasonCode }),
       });
       setSuccessMsg(`KYC untuk nasabah ${customer.name} berhasil diverifikasi!`);
       await handleRefresh();
-    } catch (err: any) {
-      setError(err.message || "Verifikasi KYC gagal");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verifikasi KYC gagal");
     } finally {
       setIsProcessing(false);
     }
@@ -101,13 +113,13 @@ export default function TellerDashboard() {
     try {
       await fetchApi("/api/bank/teller/top-up", {
         method: "POST",
-        body: JSON.stringify({ userId: customer.id, amount: topupAmount }),
+        body: JSON.stringify({ userId: customer.id, amount: topupAmount, reasonCode }),
       });
       setSuccessMsg(`Berhasil melakukan top-up Rp ${Number(topupAmount).toLocaleString("id-ID")} ke ${customer.name}`);
       setTopupAmount("");
       await handleRefresh();
-    } catch (err: any) {
-      setError(err.message || "Top-up gagal");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Top-up gagal");
     } finally {
       setIsProcessing(false);
     }
@@ -122,13 +134,13 @@ export default function TellerDashboard() {
     try {
       await fetchApi("/api/bank/teller/withdraw", {
         method: "POST",
-        body: JSON.stringify({ userId: customer.id, amount: withdrawAmount }),
+        body: JSON.stringify({ userId: customer.id, amount: withdrawAmount, reasonCode }),
       });
       setSuccessMsg(`Berhasil menarik Rp ${Number(withdrawAmount).toLocaleString("id-ID")} dari ${customer.name}`);
       setWithdrawAmount("");
       await handleRefresh();
-    } catch (err: any) {
-      setError(err.message || "Penarikan gagal");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Penarikan gagal");
     } finally {
       setIsProcessing(false);
     }
@@ -141,7 +153,7 @@ export default function TellerDashboard() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       {/* Header Banner */}
-      <div className="relative overflow-hidden bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 rounded-3xl p-8 shadow-sm">
+      <div className="relative overflow-hidden border border-primary/20 bg-primary/10 rounded-3xl p-8 shadow-sm">
         <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-primary/10 blur-[80px] rounded-full pointer-events-none" />
         <div className="relative flex items-center gap-3 mb-2">
           <Sparkles className="text-primary w-5 h-5 animate-pulse" />
@@ -154,7 +166,8 @@ export default function TellerDashboard() {
       </div>
 
       {/* Lookup Card */}
-      <motion.div 
+        <motion.div
+        id="customer"
         layout
         className="bg-card border border-border rounded-3xl p-6 shadow-md dark:shadow-black/20"
       >
@@ -239,10 +252,22 @@ export default function TellerDashboard() {
         </AnimatePresence>
       </motion.div>
 
+      <div className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <label className="text-xs font-semibold uppercase text-muted-foreground">Reason code operasi teller</label>
+        <input
+          value={reasonCode}
+          onChange={(event) => setReasonCode(event.target.value)}
+          className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-primary"
+          required
+        />
+        <p className="mt-2 text-xs text-muted-foreground">Reason code ini dicatat pada audit log untuk verifikasi KYC, top-up, dan penarikan.</p>
+      </div>
+
       {/* Customer Info & Operations Area */}
       <AnimatePresence mode="wait">
         {customer && (
           <motion.div
+            id="operations"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
