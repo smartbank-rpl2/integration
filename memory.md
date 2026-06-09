@@ -109,3 +109,8 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Menambahkan migration `20260609153000_add_updated_at_defaults` untuk memberikan default dan auto-update timestamp pada `users`, `wallet_accounts`, dan `idempotency_keys`.
   - Query registrasi user dan seed staff Wallet sekarang juga mengisi serta memperbarui `updated_at` secara eksplisit sebagai perlindungan tambahan.
   - Validasi: migration deploy PASS, syntax check Wallet PASS, register user baru melalui Gateway PASS, login user baru PASS, saldo awal Rp50.000 terbentuk, dan kolom `updated_at` terisi pada database.
+
+- **[2026-06-09] Staff Account Seed Role Migration:**
+  - Menambahkan migration `20260609154500_add_staff_user_roles` untuk memastikan enum database `users.role` memuat `MANAGER` dan `TELLER`, sesuai Prisma schema dan RBAC aplikasi.
+  - Menjalankan seed staff Wallet dengan `ENABLE_STAFF_SEED=true`; akun `teller@test.com` dan `manager@test.com` berhasil dibuat dengan password `password` dan PIN `123456`.
+  - Validasi: login Teller dan Manager melalui Gateway `/api/wallet/v1/auth/login` PASS, role token masing-masing `TELLER` dan `MANAGER`.
