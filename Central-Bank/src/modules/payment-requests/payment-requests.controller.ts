@@ -28,6 +28,7 @@ export class PaymentRequestsController {
       description: dto.description,
       metadata: dto.metadata,
       expiresAt: new Date(dto.expires_at),
+      actorUserId: user.sub,
       idempotency: {
         key: requireIdempotencyKey(req),
         route: 'POST /api/v1/payment-requests',

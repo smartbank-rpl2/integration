@@ -73,6 +73,12 @@ export class SettlementService {
     if (account.availableBalance < amount) throw new AppError(ErrorCode.INSUFFICIENT_BALANCE, 'Saldo tidak mencukupi');
   }
 
+  ensureWalletOwnedByActor(account: WalletAccount, actorUserId: string) {
+    if (!account.userId || account.userId !== actorUserId) {
+      throw new AppError(ErrorCode.FORBIDDEN, 'Akses ke wallet ini tidak diizinkan');
+    }
+  }
+
   async applyEntries(tx: Prisma.TransactionClient, entries: LedgerPost[]) {
     const byAccount = new Map<string, bigint>();
     for (const entry of entries) {
@@ -282,7 +288,6 @@ export class SettlementService {
           await tx.paymentRequest.update({ where: { id: payment.id }, data: { status: 'EXPIRED' } });
           throw new AppError(ErrorCode.PAYMENT_EXPIRED, 'Payment request sudah expired');
         }
-        await this.enforceVelocityLimits(tx, payment.payerWalletId);
         const quote = await this.fees.quote({ tx, sourceApp: payment.sourceApp, amount: payment.grossAmount });
         const accounts = await this.lockAccounts(tx, [
           payment.payerWalletId,
@@ -291,6 +296,8 @@ export class SettlementService {
         ]);
         const payer = accounts.get(payment.payerWalletId);
         if (!payer) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Payer wallet tidak ditemukan');
+        this.ensureWalletOwnedByActor(payer, input.actorUserId);
+        await this.enforceVelocityLimits(tx, payment.payerWalletId);
         this.ensureDebitAllowed(payer, quote.totalDebit);
         const transactionId = randomUUID();
         const entries: LedgerPost[] = [
@@ -534,6 +541,7 @@ export class SettlementService {
         const accounts = await this.lockAccounts(tx, [loan.borrowerWalletId, loanPool.id]);
         const borrower = accounts.get(loan.borrowerWalletId);
         if (!borrower) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Borrower wallet tidak ditemukan');
+        this.ensureWalletOwnedByActor(borrower, input.actorUserId);
         this.ensureDebitAllowed(borrower, input.amount);
         const transactionId = randomUUID();
         const paidAmount = loan.paidAmount + input.amount;

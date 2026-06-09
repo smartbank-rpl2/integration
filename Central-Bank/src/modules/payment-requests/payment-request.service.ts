@@ -29,6 +29,7 @@ export class PaymentRequestService {
     description: string;
     metadata?: Record<string, unknown>;
     expiresAt: Date;
+    actorUserId: string;
     idempotency: { key: string; route: string; actorId: string; requestHash: string };
   }) {
     this.money.assertPositive(input.grossAmount);
@@ -36,7 +37,10 @@ export class PaymentRequestService {
     return this.prisma.$transaction(async (tx) => {
       const idem = await this.idempotency.start(tx, input.idempotency);
       if (idem.replay) return idem.response;
-      await tx.walletAccount.findUniqueOrThrow({ where: { id: input.payerWalletId } });
+      const payer = await tx.walletAccount.findUniqueOrThrow({ where: { id: input.payerWalletId } });
+      if (!payer.userId || payer.userId !== input.actorUserId) {
+        throw new AppError(ErrorCode.FORBIDDEN, 'Payer wallet bukan milik pengguna yang terautentikasi');
+      }
       await tx.walletAccount.findUniqueOrThrow({ where: { id: input.payeeWalletId } });
       const quote = await this.fees.quote({ tx, sourceApp: input.sourceApp, amount: input.grossAmount });
       const id = randomUUID();

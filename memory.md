@@ -76,4 +76,14 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
 
 - **Selanjutnya:** Menyusun Panduan Pengguna (User Manual) dan dashboard Manager.
 
+- **[2026-06-09] P0 Business Logic & Authorization Hardening:**
+  - Menutup celah object-level authorization pada payment request: payer wallet saat membuat dan membayar payment request sekarang wajib dimiliki oleh user JWT yang terautentikasi.
+  - Menutup celah repayment pinjaman: user tidak dapat memicu debit repayment untuk loan milik user lain.
+  - Mengembalikan alur pinjaman ke proses approval yang benar: endpoint apply hanya membuat loan `PENDING`, sedangkan pencairan tetap dilakukan melalui Manager approval.
+  - Menambahkan idempotency transaction pada proses pengajuan loan agar retry tidak membuat loan ganda.
+  - Menghapus jalur produksi Wallet yang menulis langsung ke `wallet_accounts`, `transactions`, dan `ledger_entries` untuk top-up/stimulus. Operasi nyata wajib melalui CentralBank Core.
+  - Memperbaiki startup Wallet dengan menambahkan import `config` yang sebelumnya hilang.
+  - Menyelaraskan pesan Wallet agar pengajuan loan dinyatakan menunggu approval Manager.
+  - Menambahkan regression test object ownership, unauthorized payer payment request, dan loan apply tanpa auto-disbursement.
+  - Validasi: `nest build` PASS, TypeScript `--noEmit` PASS, regression test P0 6/6 PASS, syntax check Wallet PASS. Full Central-Bank test 8/9 suite PASS; suite RBAC lama gagal hanya karena MySQL lokal `127.0.0.1:3306` tidak berjalan. ESLint belum dapat dijalankan karena konfigurasi proyek belum dimigrasikan ke format ESLint 9.
 

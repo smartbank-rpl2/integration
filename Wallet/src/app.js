@@ -16,6 +16,7 @@ import { idempotencyMiddleware } from './middleware/idempotency.middleware.js';
 import { requireRole } from './middleware/rbac.middleware.js';
 import { responseHelper } from './utils/response.js';
 import { db } from './config/database.js';
+import { config } from './config/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

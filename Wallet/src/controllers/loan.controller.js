@@ -33,7 +33,7 @@ export const loanController = {
       const loanReceipt = await centralBankService.applyLoan(walletId, loanAmount, token);
 
       return responseHelper.success(res, {
-        message: 'Pengajuan pinjaman modal UMKM disetujui & dana dicairkan',
+        message: 'Pengajuan pinjaman modal UMKM berhasil dikirim dan menunggu persetujuan Manager',
         loan: loanReceipt
       }, 201);
 

@@ -679,72 +679,11 @@ export const centralBankService = {
   // 8. SIMULATED TOP UP (FUNDS ADDED FROM CASH/BANK)
   topUp: async (walletId, amount) => {
     if (!config.centralBank.mock) {
-      const pool = db.getPool();
-      if (!pool) throw new Error('Database pool tidak tersedia');
-      const conn = await pool.getConnection();
-      try {
-        await conn.beginTransaction();
-
-        // 1. Lock reserve
-        const [reserves] = await conn.query("SELECT id, available_balance FROM wallet_accounts WHERE account_code = 'CENTRAL_RESERVE' FOR UPDATE");
-        if (reserves.length === 0) throw new Error('Central Reserve tidak ditemukan');
-        const reserve = reserves[0];
-
-        // 2. Lock user wallet
-        const [wallets] = await conn.query("SELECT id, available_balance FROM wallet_accounts WHERE id = ? FOR UPDATE", [walletId]);
-        if (wallets.length === 0) throw new Error('User wallet tidak ditemukan');
-        const wallet = wallets[0];
-
-        if (reserve.available_balance < BigInt(amount)) {
-          throw new Error('Cadangan dana Bank Sentral tidak memadai');
-        }
-
-        // 3. Update balances
-        const newReserveBalance = BigInt(reserve.available_balance) - BigInt(amount);
-        const newWalletBalance = BigInt(wallet.available_balance) + BigInt(amount);
-
-        await conn.query("UPDATE wallet_accounts SET available_balance = ? WHERE id = ?", [newReserveBalance, reserve.id]);
-        await conn.query("UPDATE wallet_accounts SET available_balance = ? WHERE id = ?", [newWalletBalance, wallet.id]);
-
-        // 4. Create transaction
-        const txId = `trx_topup_${crypto.randomBytes(8).toString('hex')}`;
-        await conn.query(
-          "INSERT INTO transactions (id, transaction_type, status, source_app, payer_wallet_id, payee_wallet_id, gross_amount, total_debit, settled_at) VALUES (?, 'INITIAL_DISTRIBUTION', 'SETTLED', 'SMARTBANK_WALLET', ?, ?, ?, ?, NOW())",
-          [txId, reserve.id, wallet.id, amount, amount]
-        );
-
-        // 5. Create ledger entries
-        const entry1Id = crypto.randomUUID();
-        const entry2Id = crypto.randomUUID();
-        await conn.query(
-          "INSERT INTO ledger_entries (id, transaction_id, entry_no, account_id, direction, amount, balance_after, description) VALUES (?, ?, 1, ?, 'DEBIT', ?, ?, 'Top Up Saldo')",
-          [entry1Id, txId, reserve.id, amount, newReserveBalance]
-        );
-        await conn.query(
-          "INSERT INTO ledger_entries (id, transaction_id, entry_no, account_id, direction, amount, balance_after, description) VALUES (?, ?, 2, ?, 'CREDIT', ?, ?, 'Top Up Saldo')",
-          [entry2Id, txId, wallet.id, amount, newWalletBalance]
-        );
-
-        await conn.commit();
-
-        // Sync read-model cache
-        await db.query("UPDATE wallet_accounts_cache SET available_balance = ? WHERE wallet_id = ?", [newWalletBalance, walletId]);
-
-        return {
-          id: txId,
-          transaction_type: 'TOPUP',
-          status: 'SETTLED',
-          gross_amount: amount,
-          total_debit: amount,
-          created_at: new Date().toISOString()
-        };
-      } catch (err) {
-        await conn.rollback();
-        console.error('❌ Transaction rollback in topUp:', err.message);
-        throw new CustomError('BAD_REQUEST', `Gagal memproses Top Up: ${err.message}`, 400);
-      } finally {
-        conn.release();
-      }
+      throw new CustomError(
+        'FORBIDDEN',
+        'Top-up produksi wajib diproses Teller melalui endpoint Central Bank /api/v1/teller/top-up',
+        403
+      );
     }
 
     // Simulation Engine Mock:
@@ -832,90 +771,11 @@ export const centralBankService = {
   // 10. STIMULUS CLAIM (5.000)
   claimStimulus: async (walletId) => {
     if (!config.centralBank.mock) {
-      // Check cooldown for stimulus claim from DB
-      const lastClaimResult = await db.query(
-        `SELECT t.created_at FROM transactions t 
-         WHERE t.payee_wallet_id = $1 AND t.transaction_type = 'INITIAL_DISTRIBUTION' AND t.source_app = 'CENTRAL_BANK_STIMULUS'
-         ORDER BY t.created_at DESC LIMIT 1`,
-        [walletId]
+      throw new CustomError(
+        'FORBIDDEN',
+        'Stimulus produksi harus diproses oleh kebijakan moneter Central Bank Core',
+        403
       );
-      const lastClaimRows = lastClaimResult.rows;
-      if (lastClaimRows && lastClaimRows.length > 0) {
-        const lastClaimTime = new Date(lastClaimRows[0].created_at).getTime();
-        const secondsSince = Math.floor((Date.now() - lastClaimTime) / 1000);
-        if (secondsSince < 15) {
-          throw new CustomError('COOLDOWN_ACTIVE', `Anda baru saja mengklaim stimulus. Tunggu ${15 - secondsSince} detik lagi untuk mengklaim kembali.`, 429);
-        }
-      }
-
-      const stimulusAmount = 5000;
-
-      const pool = db.getPool();
-      if (!pool) throw new Error('Database pool tidak tersedia');
-      const conn = await pool.getConnection();
-      try {
-        await conn.beginTransaction();
-
-        // 1. Lock reserve
-        const [reserves] = await conn.query("SELECT id, available_balance FROM wallet_accounts WHERE account_code = 'CENTRAL_RESERVE' FOR UPDATE");
-        if (reserves.length === 0) throw new Error('Central Reserve tidak ditemukan');
-        const reserve = reserves[0];
-
-        // 2. Lock user wallet
-        const [wallets] = await conn.query("SELECT id, available_balance FROM wallet_accounts WHERE id = ? FOR UPDATE", [walletId]);
-        if (wallets.length === 0) throw new Error('User wallet tidak ditemukan');
-        const wallet = wallets[0];
-
-        if (reserve.available_balance < BigInt(stimulusAmount)) {
-          throw new Error('Cadangan dana Bank Sentral tidak memadai');
-        }
-
-        // 3. Update balances
-        const newReserveBalance = BigInt(reserve.available_balance) - BigInt(stimulusAmount);
-        const newWalletBalance = BigInt(wallet.available_balance) + BigInt(stimulusAmount);
-
-        await conn.query("UPDATE wallet_accounts SET available_balance = ? WHERE id = ?", [newReserveBalance, reserve.id]);
-        await conn.query("UPDATE wallet_accounts SET available_balance = ? WHERE id = ?", [newWalletBalance, wallet.id]);
-
-        // 4. Create transaction
-        const txId = `trx_stim_${crypto.randomBytes(8).toString('hex')}`;
-        await conn.query(
-          "INSERT INTO transactions (id, transaction_type, status, source_app, payer_wallet_id, payee_wallet_id, gross_amount, total_debit, settled_at) VALUES (?, 'INITIAL_DISTRIBUTION', 'SETTLED', 'CENTRAL_BANK_STIMULUS', ?, ?, ?, ?, NOW())",
-          [txId, reserve.id, wallet.id, stimulusAmount, stimulusAmount]
-        );
-
-        // 5. Create ledger entries
-        const entry1Id = crypto.randomUUID();
-        const entry2Id = crypto.randomUUID();
-        await conn.query(
-          "INSERT INTO ledger_entries (id, transaction_id, entry_no, account_id, direction, amount, balance_after, description) VALUES (?, ?, 1, ?, 'DEBIT', ?, ?, 'Klaim Stimulus')",
-          [entry1Id, txId, reserve.id, stimulusAmount, newReserveBalance]
-        );
-        await conn.query(
-          "INSERT INTO ledger_entries (id, transaction_id, entry_no, account_id, direction, amount, balance_after, description) VALUES (?, ?, 2, ?, 'CREDIT', ?, ?, 'Klaim Stimulus')",
-          [entry2Id, txId, wallet.id, stimulusAmount, newWalletBalance]
-        );
-
-        await conn.commit();
-
-        // Sync read-model cache
-        await db.query("UPDATE wallet_accounts_cache SET available_balance = ? WHERE wallet_id = ?", [newWalletBalance, walletId]);
-
-        return {
-          id: txId,
-          transaction_type: 'STIMULUS',
-          status: 'SETTLED',
-          gross_amount: stimulusAmount,
-          total_debit: stimulusAmount,
-          created_at: new Date().toISOString()
-        };
-      } catch (err) {
-        await conn.rollback();
-        console.error('❌ Transaction rollback in claimStimulus:', err.message);
-        throw new CustomError('BAD_REQUEST', `Gagal memproses Stimulus: ${err.message}`, 400);
-      } finally {
-        conn.release();
-      }
     }
 
     // Simulation Engine Mock:
