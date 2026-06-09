@@ -48,11 +48,12 @@ export const authService = {
 
     // Always INSERT (or UPDATE if exists) — ON DUPLICATE KEY handles re-registration
     await db.query(
-      `INSERT INTO users (id, name, email, phone, password_hash, pin_hash, kyc_tier, status, role)
-       VALUES (?, ?, ?, ?, ?, ?, 'BASIC', 'ACTIVE', ?)
+      `INSERT INTO users (id, name, email, phone, password_hash, pin_hash, kyc_tier, status, role, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'BASIC', 'ACTIVE', ?, CURRENT_TIMESTAMP(3))
        ON DUPLICATE KEY UPDATE
          name=VALUES(name), phone=VALUES(phone),
-         password_hash=VALUES(password_hash), pin_hash=VALUES(pin_hash)`,
+         password_hash=VALUES(password_hash), pin_hash=VALUES(pin_hash),
+         updated_at=CURRENT_TIMESTAMP(3)`,
       [cbUserId, name, cleanEmail, cleanPhone, passwordHash, pinHash, dbRole]
     );
 

@@ -103,3 +103,9 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Merapikan dashboard layout: navigasi sidebar berbasis role dengan anchor tujuan nyata, dukungan role `WALLET_USER`/`RETAIL`/`CENTRAL_BANK_ADMIN`, theme toggle di topbar, dan penggantian `h-screen` menjadi `h-dvh`.
   - Memperbaiki error frontend lama: tipe role auth, `next-themes` type import, duplikasi import Tailwind, login email field, register tanpa payload role, serta helper API typed generic dengan `NEXT_PUBLIC_API_BASE_URL`.
   - Validasi: frontend `tsc --noEmit --incremental false` PASS, `npm run lint` PASS, dan `npm run build` PASS setelah build diberi akses jaringan untuk `next/font` Google Fonts. Browser Use tool tidak tersedia di sesi ini; smoke preview lokal tidak dapat dilanjutkan karena proses `next start` tidak menetap pada sandbox Windows.
+
+- **[2026-06-09] Wallet Registration `updated_at` Compatibility Fix:**
+  - Memperbaiki kegagalan registrasi Wallet `Field 'updated_at' doesn't have a default value` yang terjadi karena Wallet melakukan SQL insert langsung ke tabel Prisma `users`, sementara `@updatedAt` hanya dikelola otomatis saat menggunakan Prisma Client.
+  - Menambahkan migration `20260609153000_add_updated_at_defaults` untuk memberikan default dan auto-update timestamp pada `users`, `wallet_accounts`, dan `idempotency_keys`.
+  - Query registrasi user dan seed staff Wallet sekarang juga mengisi serta memperbarui `updated_at` secara eksplisit sebagai perlindungan tambahan.
+  - Validasi: migration deploy PASS, syntax check Wallet PASS, register user baru melalui Gateway PASS, login user baru PASS, saldo awal Rp50.000 terbentuk, dan kolom `updated_at` terisi pada database.
