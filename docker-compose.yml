@@ -1,101 +1,168 @@
-version: '3.8'
+name: smartbank
 
 services:
   mysql:
     image: mysql:8.0
     container_name: smartbank-mysql
     command: --default-authentication-plugin=mysql_native_password
-    env_file:
-      - .env
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-in-production}
-      MYSQL_DATABASE: central_bank_core
-      MYSQL_USER: central_bank
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me-in-production}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-central_bank_core}
+      MYSQL_USER: ${MYSQL_USER:-central_bank}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set in .env}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "central_bank", "-p${MYSQL_PASSWORD:-change-me-in-production}"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 20s
+    networks:
+      - smartbank
 
   central-bank:
     build:
       context: ./Central-Bank
       dockerfile: Dockerfile
     container_name: smartbank-central-bank
+    init: true
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: mysql://${MYSQL_USER:-central_bank}:${MYSQL_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-central_bank_core}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      JWT_ISSUER: ${JWT_ISSUER:-smartbank}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-smartbank-clients}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3001}
+      PORT: 3000
+      TOTAL_MONEY_SUPPLY: ${CB_TOTAL_MONEY_SUPPLY:-1000000000}
+      INITIAL_USER_BALANCE: ${CB_INITIAL_USER_BALANCE:-50000}
+      INITIAL_DISTRIBUTION_MAX_BPS: ${CB_INITIAL_DISTRIBUTION_MAX_BPS:-200}
+      RESERVE_MINIMUM_BPS: ${CB_RESERVE_MINIMUM_BPS:-9800}
+      DAILY_TRANSACTION_LIMIT: ${CB_DAILY_TRANSACTION_LIMIT:-10}
+      TRANSACTION_COOLDOWN_SECONDS: ${CB_TRANSACTION_COOLDOWN_SECONDS:-10}
     ports:
       - "3000:3000"
-    env_file:
-      - .env
-    environment:
-      DATABASE_URL: ${CB_DATABASE_URL:-mysql://central_bank:change-me@mysql:3306/central_bank_core}
-      JWT_SECRET: ${CB_JWT_SECRET:-change-me-in-production}
-      PORT: 3000
-      TOTAL_MONEY_SUPPLY: 1000000000
-      INITIAL_USER_BALANCE: 50000
-      INITIAL_DISTRIBUTION_MAX_BPS: 200
-      RESERVE_MINIMUM_BPS: 9800
-      DAILY_TRANSACTION_LIMIT: 10
-      TRANSACTION_COOLDOWN_SECONDS: 10
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:3000/api/v1/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/v1/health"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 30s
     depends_on:
       mysql:
         condition: service_healthy
-
-  central-bank-ui:
-    build:
-      context: ./Central-Bank/frontend
-      dockerfile: Dockerfile
-    container_name: smartbank-central-bank-ui
-    ports:
-      - "5173:5173"
-    env_file:
-      - .env
-    environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api/v1}
-    depends_on:
-      - central-bank
+    networks:
+      - smartbank
 
   wallet:
     build:
       context: ./Wallet
       dockerfile: Dockerfile
     container_name: smartbank-wallet
-    ports:
-      - "6969:6969"
-    env_file:
-      - .env
+    init: true
+    restart: unless-stopped
     environment:
-      PORT: ${WALLET_PORT:-6969}
+      PORT: 6969
       NODE_ENV: ${WALLET_NODE_ENV:-development}
-      JWT_SECRET: ${WALLET_JWT_SECRET:-change-me-in-production}
-      JWT_ACCESS_EXPIRES: 3600
-      JWT_REFRESH_EXPIRES: 604800
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      JWT_ISSUER: ${JWT_ISSUER:-smartbank}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-smartbank-clients}
+      JWT_ACCESS_EXPIRES: ${WALLET_JWT_ACCESS_EXPIRES:-3600}
+      JWT_REFRESH_EXPIRES: ${WALLET_JWT_REFRESH_EXPIRES:-604800}
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_USER: central_bank
-      DB_PASSWORD: ${MYSQL_PASSWORD:-change-me-in-production}
-      DB_NAME: central_bank_core
+      DB_USER: ${MYSQL_USER:-central_bank}
+      DB_PASSWORD: ${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set in .env}
+      DB_NAME: ${MYSQL_DATABASE:-central_bank_core}
       USE_IN_MEMORY_DB: "false"
-      CENTRAL_BANK_CORE_URL: ${CENTRAL_BANK_CORE_URL:-http://central-bank:3000}
+      CENTRAL_BANK_CORE_URL: http://central-bank:3000
       MOCK_CENTRAL_BANK: "false"
-      COOLDOWN_SECONDS: 10
-      DAILY_LIMIT_COUNT: 10
-      CORS_ALLOWED_ORIGINS: ${WALLET_CORS_ORIGINS:-http://localhost:3001,http://localhost:6969}
-      ENABLE_STAFF_SEED: ${ENABLE_STAFF_SEED:-false}
+      COOLDOWN_SECONDS: ${WALLET_COOLDOWN_SECONDS:-10}
+      DAILY_LIMIT_COUNT: ${WALLET_DAILY_LIMIT_COUNT:-10}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3001,http://localhost:4000,http://localhost:6969}
+      ENABLE_STAFF_SEED: ${ENABLE_STAFF_SEED:-true}
+    ports:
+      - "6969:6969"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:6969/"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
     depends_on:
       mysql:
         condition: service_healthy
       central-bank:
         condition: service_healthy
+    networks:
+      - smartbank
+
+  gateway:
+    build:
+      context: ./Gateway
+      dockerfile: Dockerfile
+    container_name: smartbank-gateway
+    init: true
+    restart: unless-stopped
+    environment:
+      PORT: 4000
+      NODE_ENV: ${GATEWAY_NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      JWT_ISSUER: ${JWT_ISSUER:-smartbank}
+      JWT_AUDIENCE: ${JWT_AUDIENCE:-smartbank-clients}
+      CENTRAL_BANK_URL: http://central-bank:3000
+      WALLET_URL: http://wallet:6969
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3001}
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:4000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    depends_on:
+      central-bank:
+        condition: service_healthy
+      wallet:
+        condition: service_healthy
+    networks:
+      - smartbank
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000}
+    container_name: smartbank-frontend
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:4000}
+    ports:
+      - "3001:3001"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/login').then((res)=>process.exit(res.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks:
+      - smartbank
+
+networks:
+  smartbank:
+    driver: bridge
 
 volumes:
   mysql_data:

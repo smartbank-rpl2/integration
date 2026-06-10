@@ -20,13 +20,17 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- 2. IDEMPOTENCY KEYS TABLE (Wallet specific)
 CREATE TABLE IF NOT EXISTS idempotency_keys (
-    `key` VARCHAR(255) PRIMARY KEY,
-    client_id CHAR(36) NOT NULL,
-    response_code INT NOT NULL,
-    response_body TEXT NOT NULL,
-    hash_payload VARCHAR(255) NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_idem_created (created_at)
+    id CHAR(36) PRIMARY KEY,
+    idempotency_key VARCHAR(191) NOT NULL,
+    route VARCHAR(191) NOT NULL,
+    actor_id VARCHAR(191) NULL,
+    request_hash VARCHAR(128) NOT NULL,
+    response_body JSON NULL,
+    status ENUM('PROCESSING', 'COMPLETED', 'FAILED') NOT NULL DEFAULT 'PROCESSING',
+    locked_until DATETIME(3) NULL,
+    created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+    UNIQUE KEY idempotency_keys_idempotency_key_route_actor_id_key (idempotency_key, route, actor_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. WALLET ACCOUNTS CACHE (Read-only replica for high performance)

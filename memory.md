@@ -114,3 +114,10 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Menambahkan migration `20260609154500_add_staff_user_roles` untuk memastikan enum database `users.role` memuat `MANAGER` dan `TELLER`, sesuai Prisma schema dan RBAC aplikasi.
   - Menjalankan seed staff Wallet dengan `ENABLE_STAFF_SEED=true`; akun `teller@test.com` dan `manager@test.com` berhasil dibuat dengan password `password` dan PIN `123456`.
   - Validasi: login Teller dan Manager melalui Gateway `/api/wallet/v1/auth/login` PASS, role token masing-masing `TELLER` dan `MANAGER`.
+
+- **[2026-06-10] Docker Reinstall Recovery & Container Setup:**
+  - Menata ulang `docker-compose.yml` agar stack lengkap berjalan melalui MySQL, Central-Bank, Wallet, Gateway, dan frontend Next.js, dengan internal service URL, `healthcheck`, `depends_on: service_healthy`, dan port host `3306/3000/6969/4000/3001`.
+  - Menambahkan Dockerfile dan `.dockerignore` untuk Gateway dan frontend, mengganti runtime frontend ke `node:20-bookworm-slim`, serta memasang native binary `lightningcss` dan `@tailwindcss/oxide` secara eksplisit agar build Next.js stabil di container.
+  - Memperbaiki startup Central-Bank agar memakai `prisma migrate deploy` plus seed, menaruh `prisma` setelah install dependency untuk layer cache yang lebih baik, dan menghapus cache `*.tsbuildinfo` dari build context.
+  - Menyelaraskan idempotency Wallet ke status `PROCESSING/COMPLETED`, lalu menambahkan migrasi Prisma `20260610152000_add_pending_loan_status` agar enum `loans.status` menerima `PENDING`.
+  - Verifikasi akhir: `docker compose up -d --wait` sukses, semua container healthy, smoke test host 200 pada `3000/4000/3001/6969`, login staff `teller@test.com` dan `manager@test.com` PASS, KYC PASS, top-up PASS, balance PASS, dan loan apply PASS dengan status `PENDING`.
