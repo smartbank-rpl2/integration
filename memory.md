@@ -161,3 +161,12 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Pengajuan pinjaman ditolak untuk nasabah BASIC, dan Manager kini mendapat endpoint antrean pinjaman `PENDING` berisi data borrower, KYC, saldo, pokok, bunga, total due, serta preview dokumen.
   - Frontend dipisah ke route nyata seperti `/kyc`, `/transfer`, `/pinjaman`, `/teller/nasabah`, `/manager/pinjaman`, dan `/admin`, dengan shell navigasi berbasis role serta akun seed admin `admin@test.com`.
   - Validasi: Central-Bank test suite PASS 11/11, frontend lint PASS, frontend typecheck PASS, frontend build PASS, Wallet syntax PASS, dan smoke test API PASS untuk upload dokumen, verifikasi KYC, pembatasan BASIC, loan queue Manager, serta login admin `CENTRAL_BANK_ADMIN`.
+
+- **[2026-06-11] Docker Footprint Reduction Pass:**
+  - Mengubah `frontend` ke Next.js `output: "standalone"` sehingga runtime image tidak lagi membawa seluruh `node_modules`; runtime sekarang hanya menyalin `server.js`, static assets, dan `public`.
+  - Memisahkan `Central-Bank` menjadi multi-stage build yang memakai `npm ci`, mengompilasi `prisma/seed.ts` ke `dist-seed/seed.js`, lalu menjalankan `prisma migrate deploy` dari dependency runtime.
+  - Memindahkan `prisma` dari `devDependencies` ke `dependencies` agar image runtime tetap bisa menjalankan migrasi tanpa membawa compiler TypeScript dan tool dev lain.
+  - Menambahkan panduan cleanup Docker di README memakai `docker buildx prune --reserved-space`, `docker image prune`, dan penghapusan cache lokal `.next`; tidak menyarankan `docker system prune --volumes`.
+  - Membersihkan cache lokal `frontend/.next`, `frontend/node_modules`, `Central-Bank/node_modules`, `Wallet/node_modules`, `Gateway/node_modules`, serta cache build Docker yang tidak aktif.
+  - Validasi: `docker compose build central-bank frontend` PASS, `docker compose up -d --no-build --wait` PASS, semua service `healthy`, smoke test `/api/v1/health`, `/health`, `/`, dan `/login` PASS, login Manager melalui gateway PASS.
+  - Dampak ukuran: `smartbank-frontend` turun dari sekitar 1,16 GB menjadi 71,8 MB, `smartbank-central-bank` turun dari sekitar 1,21 GB menjadi 138,5 MB, dan build cache Docker turun dari 6,24 GB menjadi 2,44 GB.

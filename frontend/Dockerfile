@@ -30,14 +30,14 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV HOSTNAME=0.0.0.0
 
-COPY --from=build /app/package*.json ./
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/public ./public
-COPY --from=build /app/.next ./.next
+COPY --chown=node:node --from=build /app/public ./public
+COPY --chown=node:node --from=build /app/.next/standalone ./
+COPY --chown=node:node --from=build /app/.next/static ./.next/static
 
 EXPOSE 3001
 
 USER node
 
-CMD ["npm", "run", "start", "--", "-p", "3001"]
+CMD ["node", "server.js"]

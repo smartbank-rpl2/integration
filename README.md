@@ -92,6 +92,37 @@ docker compose up -d --build --wait
 Perhatian: `docker compose down -v` menghapus akun, transaksi, pinjaman, dan data
 lain yang tersimpan di volume MySQL.
 
+### Menghemat Penyimpanan Docker
+
+Periksa pemakaian disk dan RAM terlebih dahulu:
+
+```powershell
+docker system df -v
+docker stats --no-stream
+```
+
+Build frontend memakai output Next.js `standalone`, sedangkan Central-Bank
+memakai multi-stage build. Karena itu image runtime tidak membawa dependency
+development, source TypeScript, atau cache build yang tidak diperlukan.
+
+Pembersihan berikut tidak menghapus volume database:
+
+```powershell
+# Sisakan maksimal sekitar 1 GB build cache
+docker buildx prune --force --reserved-space 1GB
+
+# Hapus image dangling dari build lama
+docker image prune --force
+
+# Hapus cache build frontend lokal; akan dibuat lagi saat npm run build
+Remove-Item -LiteralPath .\frontend\.next -Recurse -Force
+```
+
+Jangan memakai `docker system prune --volumes` atau `docker compose down -v`
+jika data MySQL masih dibutuhkan. Folder `node_modules` lokal dapat dihapus
+untuk menghemat ruang, tetapi harus dipasang ulang dengan `npm ci` sebelum
+menjalankan test atau development di luar Docker.
+
 ## Akun Pengujian
 
 Jika `ENABLE_STAFF_SEED=true`, Wallet membuat akun staf berikut saat startup:
