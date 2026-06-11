@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { ManagerService } from './manager.service';
 import { ManagerUserActionDto, ManagerLoanActionDto } from './dto';
 import { Roles } from '../../common/roles.decorator';
@@ -13,6 +13,11 @@ export class ManagerController {
   constructor(
     private readonly manager: ManagerService,
   ) {}
+
+  @Get('loans/pending')
+  async pendingLoans() {
+    return this.manager.listPendingLoans();
+  }
 
   @Post('users/suspend')
   async suspendUser(@Body() dto: ManagerUserActionDto, @Req() req: Request, @CurrentUser() user: RequestUser) {

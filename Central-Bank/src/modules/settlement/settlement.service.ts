@@ -79,6 +79,19 @@ export class SettlementService {
     }
   }
 
+  async ensureCreditBalanceAllowed(tx: Prisma.TransactionClient, account: WalletAccount) {
+    if (account.accountType !== 'USER_WALLET' || !account.userId) return;
+    const user = await tx.user.findUnique({ where: { id: account.userId } });
+    if (!user || user.kycTier === 'VERIFIED') return;
+    const basicLimit = BigInt(process.env.BASIC_WALLET_BALANCE_LIMIT ?? '100000');
+    if (account.availableBalance > basicLimit) {
+      throw new AppError(
+        ErrorCode.FORBIDDEN,
+        `Limit saldo nasabah BASIC adalah ${basicLimit.toString()} CBDC_IDR. Verifikasi KYC diperlukan untuk menaikkan limit.`,
+      );
+    }
+  }
+
   async applyEntries(tx: Prisma.TransactionClient, entries: LedgerPost[]) {
     const byAccount = new Map<string, bigint>();
     for (const entry of entries) {
@@ -94,6 +107,7 @@ export class SettlementService {
       if (updated.availableBalance < 0n) {
         throw new AppError(ErrorCode.INSUFFICIENT_BALANCE, 'Saldo tidak boleh negatif');
       }
+      if (delta > 0n) await this.ensureCreditBalanceAllowed(tx, updated);
       balanceAfter.set(accountId, updated.availableBalance);
     }
     return entries.map((entry) => ({ ...entry, balanceAfter: balanceAfter.get(entry.accountId) }));

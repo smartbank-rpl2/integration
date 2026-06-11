@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Search, ShieldAlert, UserCheck, UserX, Wallet, XCircle } from "lucide-react";
 import { fetchApi } from "@/lib/api";
 
@@ -15,6 +15,27 @@ type Customer = {
   wallets?: Array<{ id: string; availableBalance: string | number; status: string }>;
 };
 
+type PendingLoan = {
+  id: string;
+  principal: string | number;
+  interest_amount: string | number;
+  total_due: string | number;
+  status: string;
+  created_at: string;
+  borrower?: {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    kycTier: string;
+    status: string;
+    identityDocumentType?: string | null;
+    identityDocumentNumber?: string | null;
+    identityDocumentName?: string | null;
+  } | null;
+  wallet?: { id: string; available_balance: string | number; status: string };
+};
+
 const money = (value: string | number | undefined) =>
   new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(value || 0));
 const unwrap = <T,>(response: { data?: T } | T): T | undefined =>
@@ -23,7 +44,7 @@ const unwrap = <T,>(response: { data?: T } | T): T | undefined =>
 export default function ManagerDashboard() {
   const [query, setQuery] = useState("");
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [loanId, setLoanId] = useState("");
+  const [pendingLoans, setPendingLoans] = useState<PendingLoan[]>([]);
   const [reasonCode, setReasonCode] = useState("MANAGER_REVIEW");
   const [processing, setProcessing] = useState("");
   const [notice, setNotice] = useState<{ tone: "success" | "error"; text: string } | null>(null);
@@ -45,6 +66,21 @@ export default function ManagerDashboard() {
     }
   };
 
+  const loadPendingLoans = async () => {
+    try {
+      const response = await fetchApi<{ data?: PendingLoan[] } | PendingLoan[]>("/api/bank/manager/loans/pending");
+      const data = unwrap<PendingLoan[]>(response);
+      setPendingLoans(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setNotice({ tone: "error", text: error instanceof Error ? error.message : "Daftar pinjaman pending gagal dimuat." });
+    }
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadPendingLoans(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const runAction = async (key: string, endpoint: string, payload: object, success: string) => {
     setProcessing(key);
     setNotice(null);
@@ -52,6 +88,7 @@ export default function ManagerDashboard() {
       await fetchApi(endpoint, { method: "POST", body: JSON.stringify(payload) });
       setNotice({ tone: "success", text: success });
       if (customer) await searchCustomer();
+      await loadPendingLoans();
     } catch (error) {
       setNotice({ tone: "error", text: error instanceof Error ? error.message : "Aksi gagal diproses." });
     } finally {
@@ -64,12 +101,8 @@ export default function ManagerDashboard() {
     void runAction(action, `/api/bank/manager/users/${action}`, { userId: customer.id, reasonCode: reasonCode.trim() }, `Status ${customer.name} berhasil diperbarui.`);
   };
 
-  const loanAction = (action: "approve" | "reject") => {
-    if (!loanId.trim()) {
-      setNotice({ tone: "error", text: "Loan ID wajib diisi sebelum keputusan dibuat." });
-      return;
-    }
-    void runAction(action, `/api/bank/manager/loans/${action}`, { loanId: loanId.trim(), reasonCode: reasonCode.trim() }, `Pinjaman ${loanId.trim()} berhasil ${action === "approve" ? "disetujui" : "ditolak"}.`);
+  const loanAction = (loanId: string, action: "approve" | "reject") => {
+    void runAction(action, `/api/bank/manager/loans/${action}`, { loanId, reasonCode: reasonCode.trim() }, `Pinjaman ${loanId} berhasil ${action === "approve" ? "disetujui" : "ditolak"}.`);
   };
 
   return (
@@ -115,12 +148,46 @@ export default function ManagerDashboard() {
       </section>
 
       <section id="loans" className="scroll-mt-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex items-center gap-3"><CheckCircle2 className="text-primary" size={20} /><h2 className="font-display text-xl font-semibold">Keputusan pinjaman</h2></div>
-        <p className="mt-2 text-sm text-muted-foreground">Backend belum menyediakan daftar pinjaman pending. Gunakan Loan ID dari hasil operasional yang telah diverifikasi.</p>
-        <div className="mt-5 grid gap-3 md:grid-cols-[1fr_auto_auto]">
-          <input value={loanId} onChange={(e) => setLoanId(e.target.value)} placeholder="Loan ID" className="rounded-lg border border-border bg-background px-3 py-2 font-mono text-sm outline-none focus:border-primary" />
-          <button onClick={() => loanAction("approve")} disabled={Boolean(processing)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"><CheckCircle2 size={16} /> Setujui</button>
-          <button onClick={() => loanAction("reject")} disabled={Boolean(processing)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold hover:bg-secondary/80 disabled:opacity-50"><XCircle size={16} /> Tolak</button>
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-3"><CheckCircle2 className="text-primary" size={20} /><h2 className="font-display text-xl font-semibold">Antrean approval pinjaman</h2></div>
+            <p className="mt-2 text-sm text-muted-foreground">Pinjaman PENDING muncul otomatis beserta data borrower, KYC, wallet, pokok, bunga, dan total tagihan.</p>
+          </div>
+          <button onClick={() => void loadPendingLoans()} disabled={Boolean(processing)} className="rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold hover:bg-secondary/80 disabled:opacity-50">Segarkan</button>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          {pendingLoans.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">Belum ada pinjaman yang menunggu approval.</div>
+          ) : pendingLoans.map((loan) => (
+            <article key={loan.id} className="rounded-2xl border border-border bg-background p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <p className="font-mono text-xs text-muted-foreground">{loan.id}</p>
+                  <h3 className="mt-2 font-display text-lg font-semibold">{loan.borrower?.name || "Nasabah"}</h3>
+                  <p className="text-sm text-muted-foreground">{loan.borrower?.email} - {loan.borrower?.phone || "Tanpa telepon"}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">{loan.borrower?.kycTier}</span>
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{loan.borrower?.status}</span>
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-semibold">{loan.wallet?.status}</span>
+                  </div>
+                </div>
+                <div className="grid gap-3 text-sm sm:grid-cols-4 lg:min-w-[560px]">
+                  <div><p className="text-xs text-muted-foreground">Saldo</p><p className="font-mono font-semibold">{money(loan.wallet?.available_balance)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Pokok</p><p className="font-mono font-semibold">{money(loan.principal)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Bunga</p><p className="font-mono font-semibold">{money(loan.interest_amount)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">Total due</p><p className="font-mono font-semibold">{money(loan.total_due)}</p></div>
+                </div>
+              </div>
+              <div className="mt-5 rounded-xl bg-secondary/50 p-4 text-xs text-muted-foreground">
+                Dokumen: {loan.borrower?.identityDocumentType || "-"} {loan.borrower?.identityDocumentNumber || ""} {loan.borrower?.identityDocumentName ? `atas nama ${loan.borrower.identityDocumentName}` : ""}
+              </div>
+              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <button onClick={() => loanAction(loan.id, "approve")} disabled={Boolean(processing)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"><CheckCircle2 size={16} /> Setujui pinjaman</button>
+                <button onClick={() => loanAction(loan.id, "reject")} disabled={Boolean(processing)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary px-4 py-2 text-sm font-semibold hover:bg-secondary/80 disabled:opacity-50"><XCircle size={16} /> Tolak pinjaman</button>
+              </div>
+            </article>
+          ))}
         </div>
       </section>
     </div>

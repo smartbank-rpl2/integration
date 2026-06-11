@@ -100,11 +100,17 @@ Jika `ENABLE_STAFF_SEED=true`, Wallet membuat akun staf berikut saat startup:
 |---|---|---|---|
 | Teller | `teller@test.com` | `password` | `123456` |
 | Manager | `manager@test.com` | `password` | `123456` |
+| Central Bank Admin | `admin@test.com` | `password` | `123456` |
 
 Akun Retail dibuat melalui halaman Register. Registrasi publik selalu membuat
 role `WALLET_USER` dan memberikan saldo awal `Rp 50.000`.
 
-Tidak ada akun `CENTRAL_BANK_ADMIN` yang dibuat secara default.
+Route utama setelah login:
+
+- Retail: `/dashboard`, `/transfer`, `/kyc`, `/pinjaman`, `/aktivitas`.
+- Teller: `/teller/nasabah`, `/teller/operasi`.
+- Manager: `/manager/risiko`, `/manager/pinjaman`.
+- Central Bank Admin: `/admin`, `/admin/ledger`, `/admin/reversal`.
 
 ## Testing Manual Melalui UI
 
@@ -125,16 +131,22 @@ Gunakan dua email dan nomor telepon yang berbeda.
 4. Logout dan ulangi untuk User B.
 5. Setelah registrasi, user otomatis login dan saldo awal harus tampil
    `Rp 50.000`.
+6. Buka menu `Verifikasi KYC` atau route `/kyc`.
+7. Isi jenis dokumen, nomor identitas, nama sesuai dokumen, lalu upload PNG,
+   JPG, WEBP, atau PDF maksimal 500KB.
+8. Status tetap `BASIC` sampai Teller memeriksa dan menyetujui dokumen.
 
 ### 3. Testing Teller
 
 1. Login sebagai `teller@test.com` dengan password `password`.
 2. Cari User A menggunakan email, nomor telepon, atau User ID.
-3. Isi reason code, misalnya `MANUAL_TEST_KYC`.
-4. Klik verifikasi KYC dan pastikan status berubah menjadi terverifikasi.
-5. Lakukan top-up, misalnya `100000`, lalu periksa pesan sukses.
-6. Lakukan withdraw dengan nominal lebih kecil, misalnya `10000`.
-7. Cari User B dan catat `Wallet ID` yang ditampilkan. Wallet ID ini dipakai
+3. Periksa jenis, nomor, nama, dan preview dokumen identitas nasabah.
+4. Jika dokumen belum ada, tombol verifikasi tidak boleh digunakan.
+5. Isi reason code, misalnya `MANUAL_TEST_KYC`.
+6. Klik verifikasi KYC dan pastikan status berubah menjadi `VERIFIED`.
+7. Lakukan top-up, misalnya `100000`, lalu periksa pesan sukses.
+8. Lakukan withdraw dengan nominal lebih kecil, misalnya `10000`.
+9. Cari User B dan catat `Wallet ID` yang ditampilkan. Wallet ID ini dipakai
    sebagai tujuan transfer.
 
 ### 4. Testing Transfer Retail
@@ -157,19 +169,17 @@ Catatan:
 
 1. Login sebagai User A.
 2. Ajukan pinjaman, misalnya `10000`.
-3. Pengajuan akan berstatus `PENDING` dan belum menambah saldo.
-4. Buka Developer Tools browser dengan `F12`, pilih tab Network, buka respons
-   request `loans/apply`, lalu catat `data.loan.id`.
+3. Jika KYC masih `BASIC`, pengajuan harus ditolak.
+4. Setelah KYC `VERIFIED`, pengajuan akan berstatus `PENDING` dan belum
+   menambah saldo.
 5. Logout dan login sebagai `manager@test.com`.
-6. Masukkan Loan ID pada bagian Keputusan Pinjaman.
+6. Buka `/manager/pinjaman`. Loan muncul otomatis bersama nama, email, KYC,
+   saldo, pokok, bunga, total tagihan, dan dokumen borrower.
 7. Isi reason code, misalnya `MANUAL_TEST_APPROVAL`.
-8. Klik `Setujui` atau `Tolak`.
+8. Klik `Setujui pinjaman` atau `Tolak pinjaman` pada card loan.
 9. Jika disetujui, login kembali sebagai User A dan pastikan saldo bertambah.
-10. Untuk pembayaran, masukkan Loan ID, nominal pembayaran, dan PIN di dashboard
+10. Untuk pembayaran, masukkan Loan ID, nominal pembayaran, dan PIN di halaman
     Retail.
-
-UI Manager saat ini belum menyediakan daftar pinjaman `PENDING`, sehingga Loan
-ID harus diambil dari respons API/Network.
 
 ### 6. Testing Suspend dan Activate
 
@@ -184,11 +194,16 @@ ID harus diambil dari respons API/Network.
 
 - Semua halaman utama dapat dibuka tanpa error `502`.
 - Registrasi menghasilkan akun Retail dan saldo awal.
+- Nasabah dapat upload dokumen ID dan Teller melihat dokumen sebelum verifikasi.
+- Nasabah `BASIC` tidak dapat mengajukan pinjaman dan saldo maksimalnya
+  `Rp 100.000`.
 - Teller dapat mencari user, verifikasi KYC, top-up, dan withdraw.
 - Transfer mengurangi saldo pengirim dan menambah saldo penerima.
 - Pinjaman tetap `PENDING` sebelum keputusan Manager.
+- Manager melihat antrean pinjaman beserta data borrower tanpa input Loan ID.
 - Approve pinjaman mencairkan dana, sedangkan reject tidak mencairkan dana.
 - Suspend memblokir login dan activate memulihkan akses.
+- Admin dapat login dan membuka dashboard operasi bank sentral.
 
 ## Testing API dengan PowerShell
 
@@ -400,6 +415,8 @@ Semua path di tabel menggunakan base URL
 | `POST` | `/auth/login` | Public | `email`, `password` |
 | `GET` | `/wallets/me/balance` | JWT | Tidak ada |
 | `GET` | `/wallets/me/transactions` | JWT | Tidak ada |
+| `GET` | `/wallets/me/kyc-document` | JWT | Status dan dokumen KYC user |
+| `PUT` | `/wallets/me/kyc-document` | JWT | `documentType`, `documentNumber`, `documentName`, `documentDataUrl` |
 | `POST` | `/wallets/me/topup` | JWT + PIN | `amount` |
 | `POST` | `/wallets/me/withdraw` | JWT + PIN | `amount` |
 | `POST` | `/wallets/me/claim-stimulus` | JWT + PIN | Tidak ada |
@@ -446,6 +463,7 @@ Semua path di tabel menggunakan base URL
 | `POST` | `/teller/withdraw` | Teller/Manager + Idempotency | `userId`, `amount`, opsional `reasonCode` |
 | `POST` | `/manager/users/suspend` | Manager | `userId`, opsional `reasonCode` |
 | `POST` | `/manager/users/activate` | Manager | `userId`, opsional `reasonCode` |
+| `GET` | `/manager/loans/pending` | Manager | Daftar loan pending beserta borrower |
 | `POST` | `/manager/loans/approve` | Manager + Idempotency | `loanId`, opsional `reasonCode` |
 | `POST` | `/manager/loans/reject` | Manager + Idempotency | `loanId`, opsional `reasonCode` |
 | `GET` | `/central-bank/supply` | Central Bank Admin | Tidak ada |
@@ -476,6 +494,8 @@ Contoh body pembuatan payment request:
 ## Aturan Finansial Utama
 
 - Saldo awal pengguna: `Rp 50.000`.
+- Limit saldo nasabah `BASIC`: `Rp 100.000`.
+- Pengajuan pinjaman hanya tersedia untuk nasabah KYC `VERIFIED`.
 - Total money supply default: `Rp 1.000.000.000`.
 - Maksimum pinjaman default: `Rp 100.000`.
 - Bunga pinjaman flat: 10 persen.

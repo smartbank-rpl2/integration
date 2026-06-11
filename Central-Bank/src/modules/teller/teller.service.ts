@@ -25,6 +25,12 @@ export class TellerService {
   }) {
     const user = await this.prisma.user.findUnique({ where: { id: input.userId } });
     if (!user) throw new AppError(ErrorCode.VALIDATION_ERROR, 'User tidak ditemukan');
+    if (!user.identityDocumentDataUrl || !user.identityDocumentNumber || !user.identityDocumentType) {
+      throw new AppError(
+        ErrorCode.VALIDATION_ERROR,
+        'Dokumen identitas nasabah belum diunggah. Teller wajib memeriksa dokumen sebelum verifikasi KYC.',
+      );
+    }
 
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.user.update({
@@ -40,13 +46,18 @@ export class TellerService {
         targetId: input.userId,
         requestId: input.requestId,
         reasonCode: input.reasonCode ?? 'KYC_VERIFIED',
+        metadata: {
+          document_type: user.identityDocumentType,
+          document_number: user.identityDocumentNumber,
+          document_name: user.identityDocumentName,
+        },
       });
       return updated;
     });
   }
 
   async findCustomer(query: string) {
-    if (!query) {
+    if (!query || query.length > 191) {
       throw new AppError(ErrorCode.VALIDATION_ERROR, 'Query pencarian tidak boleh kosong');
     }
 
@@ -68,7 +79,7 @@ export class TellerService {
       }
     });
     if (!user) {
-      throw new AppError(ErrorCode.VALIDATION_ERROR, `Nasabah dengan pencarian "${query}" tidak ditemukan`);
+      throw new AppError(ErrorCode.VALIDATION_ERROR, 'Nasabah tidak ditemukan');
     }
 
     // Sanitize: strip sensitive fields before returning

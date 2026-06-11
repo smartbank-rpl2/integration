@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { fetchApi } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -22,6 +23,11 @@ type TellerCustomer = {
   email: string;
   phone?: string;
   kycTier: string;
+  identityDocumentType?: string | null;
+  identityDocumentNumber?: string | null;
+  identityDocumentName?: string | null;
+  identityDocumentDataUrl?: string | null;
+  identityDocumentUploadedAt?: string | null;
   wallets?: Array<{ id: string; availableBalance: string | number }>;
 };
 
@@ -149,6 +155,7 @@ export default function TellerDashboard() {
   const activeWallet = customer?.wallets?.[0];
   const balance = activeWallet ? Number(activeWallet.availableBalance) : 0;
   const isKycVerified = customer?.kycTier === "VERIFIED";
+  const hasIdentityDocument = Boolean(customer?.identityDocumentDataUrl);
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
@@ -305,6 +312,24 @@ export default function TellerDashboard() {
                       <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">User ID</span>
                       <span className="text-[11px] font-mono text-muted-foreground select-all">{customer.id}</span>
                     </div>
+                    <div className="rounded-2xl border border-border bg-background p-4">
+                      <span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-wider block">Dokumen KYC</span>
+                      {hasIdentityDocument ? (
+                        <div className="mt-3 space-y-3">
+                          <p className="text-xs text-muted-foreground">
+                            {customer.identityDocumentType} - <span className="font-mono text-foreground">{customer.identityDocumentNumber}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground">Nama dokumen: <span className="text-foreground">{customer.identityDocumentName}</span></p>
+                          {customer.identityDocumentDataUrl?.startsWith("data:image/") ? (
+                            <Image unoptimized width={640} height={360} src={customer.identityDocumentDataUrl} alt="Dokumen identitas nasabah" className="max-h-48 w-full rounded-xl object-contain" />
+                          ) : (
+                            <div className="rounded-xl bg-secondary p-4 text-center text-xs text-muted-foreground">Dokumen PDF tersedia untuk pemeriksaan data.</div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-xs text-amber-600">Nasabah belum mengunggah dokumen identitas. KYC tidak boleh diverifikasi.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -329,7 +354,7 @@ export default function TellerDashboard() {
                       </div>
                       <button
                         onClick={handleVerifyKyc}
-                        disabled={isProcessing}
+                        disabled={isProcessing || !hasIdentityDocument}
                         className="w-full bg-amber-500 text-white font-semibold py-2 px-4 rounded-xl text-xs hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/15"
                       >
                         {isProcessing ? (

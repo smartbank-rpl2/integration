@@ -54,6 +54,13 @@ async function seedStaffAccountsToMySQL() {
       phone: '081100000002',
       role: 'MANAGER',
     },
+    {
+      id: 'staff-admin-001',
+      name: 'Admin Bank Sentral',
+      email: 'admin@test.com',
+      phone: '081100000003',
+      role: 'CENTRAL_BANK_ADMIN',
+    },
   ];
 
   for (const acc of staffAccounts) {

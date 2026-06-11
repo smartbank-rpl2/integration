@@ -4,7 +4,7 @@ import { SettlementService } from '../settlement/settlement.service';
 import { AppError } from '../../common/app-error';
 import { ErrorCode } from '../../common/error-codes';
 import { WalletAccountService } from '../wallets/wallet-account.service';
-import { AccountStatus } from '@prisma/client';
+import { AccountStatus, UserStatus } from '@prisma/client';
 import { AuditLogService } from '../audit/audit-log.service';
 
 @Injectable()
@@ -24,6 +24,10 @@ export class ManagerService {
   }) {
     const wallet = await this.wallets.getPrimaryWallet(input.userId);
     return this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: input.userId },
+        data: { status: UserStatus.SUSPENDED },
+      });
       const updated = await tx.walletAccount.update({
         where: { id: wallet.id },
         data: { status: AccountStatus.FROZEN },
@@ -51,6 +55,10 @@ export class ManagerService {
   }) {
     const wallet = await this.wallets.getPrimaryWallet(input.userId);
     return this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: input.userId },
+        data: { status: UserStatus.ACTIVE },
+      });
       const updated = await tx.walletAccount.update({
         where: { id: wallet.id },
         data: { status: AccountStatus.ACTIVE },
@@ -89,6 +97,50 @@ export class ManagerService {
         requestHash: input.loanId,
       },
     });
+  }
+
+  async listPendingLoans() {
+    const loans = await this.prisma.loan.findMany({
+      where: { status: 'PENDING' },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        borrowerWallet: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                kycTier: true,
+                status: true,
+                identityDocumentType: true,
+                identityDocumentNumber: true,
+                identityDocumentName: true,
+                identityDocumentUploadedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return loans.map((loan) => ({
+      id: loan.id,
+      borrower_wallet_id: loan.borrowerWalletId,
+      principal: loan.principal,
+      interest_amount: loan.interestAmount,
+      total_due: loan.totalDue,
+      paid_amount: loan.paidAmount,
+      status: loan.status,
+      created_at: loan.createdAt,
+      borrower: loan.borrowerWallet.user,
+      wallet: {
+        id: loan.borrowerWallet.id,
+        available_balance: loan.borrowerWallet.availableBalance,
+        status: loan.borrowerWallet.status,
+      },
+    }));
   }
 
   async rejectLoan(input: {

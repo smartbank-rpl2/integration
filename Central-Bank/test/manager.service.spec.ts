@@ -3,6 +3,9 @@ import { ManagerService } from '../src/modules/manager/manager.service';
 describe('ManagerService audit trail', () => {
   it('records reason code when suspending a user wallet', async () => {
     const tx = {
+      user: {
+        update: jest.fn().mockResolvedValue({ id: 'user-1', status: 'SUSPENDED' }),
+      },
       walletAccount: {
         update: jest.fn().mockResolvedValue({ id: 'wallet-1', status: 'FROZEN' }),
       },
@@ -28,6 +31,10 @@ describe('ManagerService audit trail', () => {
     expect(tx.walletAccount.update).toHaveBeenCalledWith({
       where: { id: 'wallet-1' },
       data: { status: 'FROZEN' },
+    });
+    expect(tx.user.update).toHaveBeenCalledWith({
+      where: { id: 'user-1' },
+      data: { status: 'SUSPENDED' },
     });
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -134,6 +134,11 @@ model User {
   // Extra fields for Wallet compatibility
   phone        String?         @unique @db.VarChar(50)
   pinHash      String?         @map("pin_hash") @db.VarChar(191)
+  identityDocumentType       String?   @map("identity_document_type") @db.VarChar(32)
+  identityDocumentNumber     String?   @map("identity_document_number") @db.VarChar(64)
+  identityDocumentName       String?   @map("identity_document_name") @db.VarChar(191)
+  identityDocumentDataUrl    String?   @map("identity_document_data_url") @db.LongText
+  identityDocumentUploadedAt DateTime? @map("identity_document_uploaded_at")
 
   @@map("users")
 }

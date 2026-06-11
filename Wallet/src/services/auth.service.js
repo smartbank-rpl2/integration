@@ -5,6 +5,7 @@ import { centralBankService } from './centralBank.service.js';
 import { tokenService } from './token.service.js';
 import { CustomError } from '../utils/errors.js';
 import { config } from '../config/config.js';
+import jwt from 'jsonwebtoken';
 
 export const authService = {
 
@@ -34,7 +35,7 @@ export const authService = {
       walletInfo = await centralBankService.createAccount(name, cleanEmail, password);
     } catch (err) {
       console.error('❌ Gagal membuat wallet di CentralBank Core:', err.message);
-      throw new CustomError('INTERNAL_SERVER_ERROR', `Registrasi ditolak oleh Central Bank: ${err.message}`, 500);
+      throw new CustomError('INTERNAL_SERVER_ERROR', 'Registrasi tidak dapat diproses oleh Central Bank', 500);
     }
 
     const { user_id: cbUserId, wallet_id: walletId, initial_balance: cbInitialBalance } = walletInfo;
@@ -111,7 +112,10 @@ export const authService = {
           // Fallback: decode from JWT if fields missing
           if (!userId && cbToken) {
             try {
-              const payload = JSON.parse(Buffer.from(cbToken.split('.')[1], 'base64').toString('utf8'));
+              const payload = jwt.verify(cbToken, config.jwt.secret, {
+                issuer: config.jwt.issuer,
+                audience: config.jwt.audience,
+              });
               userId = payload.sub || payload.userId;
               userRole = payload.role || userRole;
               if (!userName) userName = payload.name;
@@ -129,7 +133,7 @@ export const authService = {
           const tokens = tokenService.generateTokens({ userId, name: userName, email: cleanEmail, phone: null, walletId, role: userRole });
 
           return {
-            user: { id: userId, name: userName, email: cleanEmail, phone: null, kycTier, walletId, role: userRole },
+            user: { id: userId, name: userName, email: cleanEmail, phone: null, kycTier, walletId, role: userRole, status: 'ACTIVE' },
             ...tokens
           };
         } catch (fallbackErr) {
@@ -181,7 +185,8 @@ export const authService = {
         phone: user.phone,
         kycTier: user.kyc_tier,
         walletId,
-        role: user.role
+        role: user.role,
+        status: user.status
       },
       ...tokens
     };

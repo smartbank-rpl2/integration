@@ -16,6 +16,8 @@ export interface User {
   role: Role;
   name?: string;
   status: string;
+  kycTier?: string;
+  walletId?: string;
 }
 
 interface AuthState {
