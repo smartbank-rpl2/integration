@@ -1,308 +1,554 @@
-# 🏦 SmartBank Ecosystem - Two-Tier CBDC Simulation
+# SmartBank CBDC Integration
 
-SmartBank adalah sistem simulasi **Two-Tier CBDC (Central Bank Digital Currency)** terintegrasi untuk akademis tingkat lanjut (RPL 2). Proyek ini menyatukan dua modul utama:
+SmartBank adalah simulasi two-tier Central Bank Digital Currency (CBDC) untuk
+pengujian integrasi antara:
 
-1. **Central Bank Core (Tier-1):** Settlement engine moneter berbasis NestJS, Prisma, dan MySQL untuk pemrosesan saldo, pembukuan double-entry ledger, pinjaman kredit, dan manajemen persediaan uang.
-2. **SmartBank Wallet (Tier-2):** Aplikasi retail e-wallet berbasis Express.js dan Vanilla UI premium dengan peran dinamis (Merchant, Cashier, Supplier, dll.) dan visual auditing ledger.
+- Central Bank Core: NestJS, Prisma, dan MySQL.
+- Wallet Backend: Express.js.
+- API Gateway: pintu masuk API pada port `4000`.
+- Frontend: Next.js pada port `3001`.
 
----
+Proyek ini ditujukan untuk simulasi akademis dan bukan sistem perbankan produksi.
 
-## 🌟 Fitur & Aturan Keuangan SmartBank
-
-Sistem moneter ini mensimulasikan operasional bank ritel yang terikat pada aturan ketat Bank Sentral:
-
-### 1. Fitur Utama Sistem
-*   **Transfer P2P Instan:** Pengiriman dana antar-rekening dompet secara real-time. Dilengkapi dengan verifikasi PIN transaksi dan perlindungan idempotensi.
-*   **Sistem Kredit Pinjaman UMKM:** Pengajuan pinjaman modal usaha secara digital dari Pool Dana Kredit Bank Sentral. Pengguna dapat melunasi tagihan secara bertahap (cicilan) maupun penuh.
-*   **Settle Pembayaran QR / Invoice:** Pembayaran tagihan belanja merchant secara aman melalui alur ACID Transaction untuk menjamin uang terkirim secara utuh.
-*   **Top-Up & Withdrawal Simulasi:** Penambahan saldo digital instan langsung dari Reserve Bank Sentral dan simulasi pencairan uang digital menjadi uang tunai (withdraw).
-*   **Economic Stimulus Claim:** Fitur klaim bantuan stimulus digital dari negara langsung ke akun pengguna.
-
-### 2. Aturan & Kebijakan Keuangan (Financial Rules)
-*   **Suplai Uang Maksimal (Total Money Supply / M0):** Rp 1.000.000.000 (1 Miliar CBDC_IDR). Nilai ini dipertahankan sebagai batas atas pasokan moneter sistem.
-*   **Saldo Awal Akun (Initial Balance):** Setiap pengguna baru yang mendaftar secara otomatis mendapatkan alokasi awal senilai **Rp 50.000**.
-*   **Kebijakan Biaya Transaksi (Transaction Fee Rules):**
-    Setiap transaksi P2P atau pembayaran tagihan dikenakan biaya gabungan secara otomatis oleh Bank Sentral (ditanggung oleh pengirim/payer):
-    *   **Bank Fee:** **1.00%** (100 bps) -> Masuk ke akun sistem `FEE_BANK`.
-    *   **Gateway Fee:** **0.50%** (50 bps) -> Masuk ke akun sistem `FEE_GATEWAY`.
-    *   **Pajak Sistem (Tax Sink):** **2.00%** (200 bps) -> Masuk ke akun kas negara `TAX_SINK`.
-    *   *Total Potongan Biaya:* **3.50%** dari nilai kotor transaksi.
-*   **Biaya Sektor Aplikasi Khusus (App Specific Fees):**
-    *   **Marketplace:** **2.00%** (200 bps) -> Masuk ke akun `FEE_MARKETPLACE`.
-    *   **Point of Sale (POS):** **1.00%** (100 bps) -> Masuk ke akun `FEE_POS`.
-    *   **Supplier:** **3.00%** (300 bps) -> Masuk ke akun `FEE_SUPPLIER`.
-    *   **Logistics:** Flat **Rp 5.000** -> Masuk ke akun `FEE_LOGISTICS`.
-*   **Aturan Pinjaman Kredit (UMKM Loan Rules):**
-    *   **Limit Maksimal Pinjaman:** **Rp 100.000** per pengguna (outstanding pinjaman aktif tidak boleh melebihi nilai ini).
-    *   **Suku Bunga Flat:** **10%** dari total pokok pinjaman yang langsung ditambahkan pada saat pengajuan disetujui.
-*   **Batas Transaksi & Keamanan (Spam Protection):**
-    *   **Limit Transaksi Harian:** Maksimal **10 transaksi** per hari.
-    *   **Cooldown Transaksi:** Jeda wajib **10 detik** antar-transaksi untuk mencegah *double-spending* atau spamming.
-
----
-
-## 📖 Struktur API & Endpoint Dokumentasi
-
-Sistem menyediakan dua portal API yang terpisah untuk menjaga keamanan dan isolasi tingkat arsitektur (Tier-1 & Tier-2):
-
-### 1. SmartBank Wallet API (Tier-2 - Port 6969)
-Disediakan khusus untuk aplikasi retail e-wallet, frontend pengguna, dan aplikasi eksternal mitra yang ingin berintegrasi.
-
-*   **Dokumentasi Swagger UI:** Buka **[http://localhost:6969/api-docs](http://localhost:6969/api-docs)** di browser Anda.
-
-#### Daftar Endpoint Wallet:
-*   **Autentikasi (Public):**
-    *   `POST /api/v1/auth/register` - Pendaftaran pengguna e-wallet baru.
-    *   `POST /api/v1/auth/login` - Masuk log untuk mendapatkan token JWT akses (`accessToken`).
-*   **Manajemen Akun & Saldo (Protected JWT):**
-    *   `GET /api/v1/wallets/me/balance` - Cek saldo digital terkini yang tercatat di Bank Sentral.
-    *   `GET /api/v1/wallets/me/transactions` - Riwayat mutasi rekening dan transaksi.
-    *   `POST /api/v1/wallets/me/topup` - Simulasi penambahan saldo digital dari Bank Sentral.
-    *   `POST /api/v1/wallets/me/withdraw` - Penarikan saldo digital menjadi uang tunai.
-    *   `POST /api/v1/wallets/me/claim-stimulus` - Mengklaim dana stimulus moneter.
-    *   `PUT /api/v1/wallets/me/profile` - Memperbarui informasi profil pengguna.
-    *   `PUT /api/v1/wallets/me/security` - Mengubah PIN transaksi (6-digit) atau password.
-    *   `PUT /api/v1/wallets/me/upgrade` - Mengajukan upgrade status keanggotaan limit akun.
-    *   `POST /api/v1/wallets/me/subscribe-insight` - Berlangganan ringkasan info keuangan mingguan.
-*   **Transaksi Finansial (Protected JWT + PIN + Idempotency-Key):**
-    *   `POST /api/v1/transfers` - Mengirim dana P2P ke wallet pengguna lain.
-    *   `POST /api/v1/payment-requests/:id/pay` - Melakukan pembayaran tagihan QR / invoice.
-*   **Fasilitas Kredit UMKM (Protected JWT + Idempotency-Key):**
-    *   `POST /api/v1/loans/apply` - Mengajukan pinjaman kredit modal baru.
-    *   `POST /api/v1/loans/:loan_id/repay` - Membayar angsuran / cicilan kredit aktif.
-*   **Developer Helpers:**
-    *   `POST /api/v1/wallets/me/invoice/generate-test` - Membuat tagihan simulasi belanja untuk pengujian bayar.
-
----
-
-### 2. Central Bank Core API (Tier-1 - Port 3000)
-Merupakan backend internal bank sentral yang mengontrol perputaran moneter dasar dan pembukuan ledger ACID. Aplikasi retail eksternal tidak disarankan memanggil core ini secara langsung demi alasan keamanan.
-
-#### Daftar Endpoint Core:
-*   **Kesehatan Sistem:**
-    *   `GET /api/v1/health` - Status kesehatan server bank sentral.
-*   **Internal Ledger & Audit Moneter:**
-    *   `GET /api/v1/central-bank/supply` - Memantau integritas total suplai uang beredar di sistem.
-    *   `GET /api/v1/central-bank/ledger` - Menampilkan data entri jurnal pembukuan ganda secara menyeluruh.
-    *   `POST /api/v1/central-bank/reversals` - Pembatalan/reversal transaksi secara ACID jika terjadi kegagalan.
-*   **Core Settlements (Untuk Wallet Backend):**
-    *   `POST /api/v1/auth/register` & `POST /api/v1/auth/login` - Penyiapan akun moneter terpusat.
-    *   `GET /api/v1/wallets/me/balance` & `GET /api/v1/wallets/me/transactions` - Settlement saldo buku besar.
-    *   `POST /api/v1/transfers` - Settlement transfer P2P di ledger sentral.
-    *   `POST /api/v1/payment-requests` & `POST /api/v1/payment-requests/:id/pay` - Membuat dan menyelesaikan tagihan merchant.
-    *   `POST /api/v1/loans/apply` & `POST /api/v1/loans/:id/repay` - Settlement pinjaman dan cicilan di ledger pool.
-    *   `POST /api/v1/fees/quote` - Estimasi kalkulasi potongan biaya (BPS) transaksi.
-
----
-
-## 💾 3. Unifikasi Database Terpadu (MySQL)
-
-Kedua modul terintegrasi dalam **satu database MySQL lokal** yang sama (`central_bank_core`).
-*   **Central Bank Core** mengelola tabel-tabel ledger pembukuan ganda (`ledger_entries`), transaksi settled (`transactions`), permohonan (`payment_requests`), pinjaman (`loans`), dan kebijakan moneter (`monetary_policy_events`).
-*   **SmartBank Wallet** mengelola kredensial keamanan pengguna (`users`) dan cache performa lokal (`wallet_accounts_cache`).
-*   **Skema Terpadu:** Wallet menggunakan tabel `users` milik Central Bank yang diperluas secara otomatis dengan kolom tambahan (`phone` dan `pin_hash`) tanpa mengganggu struktur internal core bank sentral.
-
----
-
-## ⚙️ 4. Prasyarat Sistem (Prerequisites)
-
-*   **Docker** dan **Docker Compose** (Rekomendasi Utama)
-*   *Atau* **Node.js** (>= 18.x) & **MySQL Server** (8.x) jika dijalankan secara manual tanpa container.
-
----
-
-## 🚀 5. Panduan Menjalankan Proyek dengan Docker (Rekomendasi Utama)
-
-Dengan Docker Compose, Anda dapat membangun dan menjalankan seluruh ekosistem SmartBank (Database, Central Bank Core, Frontend Next.js, dan Wallet Backend) dengan satu perintah instan:
-
-### Langkah 1: Jalankan Docker Compose
-Buka terminal di folder root `SmartBank` dan jalankan perintah berikut:
-```bash
-docker compose up --build
-```
-
-Perintah ini akan secara otomatis:
-1. Menyalakan database **MySQL** dan melakukan *health check* kesiapan database.
-2. Membangun container **Central Bank Core API** (NestJS), menjalankan migrasi Prisma (`migrate deploy`), menjalankan data seed moneter awal (`seed.ts`), dan mendengarkan port `3000`.
-3. Membangun container **SmartBank Frontend** (Next.js) dan mendengarkan port `3001`.
-4. Membangun container **SmartBank Wallet** (ExpressJS), menjalankan sinkronisasi tabel & alter kolom tambahan pada MySQL (`migrate.js`), dan mendengarkan port `6969`.
-
-### Langkah 2: Buka Browser Anda
-Setelah seluruh container berstatus `running` dan sehat, Anda siap mengakses ekosistem moneter:
-*   **Aplikasi Dompet Retail Utama (SmartBank Wallet):** Buka **[http://localhost:6969](http://localhost:6969)**
-*   **Dokumentasi API Swagger (Interactive API Wallet):** Buka **[http://localhost:6969/api-docs](http://localhost:6969/api-docs)**
-*   **SmartBank Frontend (UI Pengguna):** Buka **[http://localhost:3001](http://localhost:3001)**
-*   **Health Check API Central Bank:** Akses **[http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health)**
-
----
-
-## 🛠️ 6. Panduan Menjalankan Proyek secara Manual (Tanpa Docker)
-
-Jika Anda ingin menjalankan secara lokal tanpa Docker, ikuti langkah-langkah di bawah:
-
-### Langkah 1: Persiapan Database MySQL Lokal
-Pastikan server MySQL lokal Anda aktif di port **`3306`** (misalnya via Laragon/XAMPP).
-*   **Database Name:** `central_bank_core`
-*   **Username:** `central_bank`
-*   **Password:** `central_bank_password`
-
-### Langkah 2: Migrasi & Seeding Central Bank Core
-Jalankan perintah ini di root folder:
-```bash
-# Generate Prisma Client
-npm run cb:generate
-
-# Jalankan migrasi database core bank
-npm run cb:db-migrate
-
-# Jalankan seed data moneter awal
-npm run cb:db-seed
-```
-
-### Langkah 3: Migrasi Skema Wallet
-Jalankan migrasi tabel dompet ke MySQL lokal:
-```bash
-npm run cb:db-migrate --prefix Wallet
-```
-
-### Langkah 4: Jalankan Semua Server Aplikasi secara Manual
-Buka 4 terminal terpisah di folder root:
-1.  **Jalankan Central Bank Core (API - Port 3000):**
-    ```bash
-    npm run start:cb
-    ```
-2.  **Jalankan SmartBank Frontend (Next.js UI - Port 3001):**
-    ```bash
-    npm run start:cb-ui
-    ```
-3.  **Jalankan SmartBank Wallet (Backend - Port 6969):**
-    ```bash
-    npm run start:wallet
-    ```
-
-### Langkah 5: Akses Aplikasi
-Setelah semua server berjalan:
-*   **SmartBank Wallet Backend:** [http://localhost:6969](http://localhost:6969)
-*   **Swagger API Docs:** [http://localhost:6969/api-docs](http://localhost:6969/api-docs)
-*   **SmartBank Frontend (UI):** [http://localhost:3001](http://localhost:3001)
-*   **Central Bank Health:** [http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health)
-
----
-
-## 👤 7. Akun Seed & Cara Pendaftaran
-
-### Sistem Akun (Auto-Generated oleh Seed)
-Seed script (`Central-Bank/prisma/seed.ts`) membuat akun sistem moneter berikut secara otomatis:
-
-| Account Code | Type | Initial Balance |
-|-------------|------|-----------------|
-| CENTRAL_RESERVE | Reserve | Rp 1.000.000.000 |
-| LOAN_POOL_ACCOUNT | Loan Pool | Rp 10.000.000 |
-| FEE_BANK | System Fee | Rp 0 |
-| FEE_GATEWAY | System Fee | Rp 0 |
-| FEE_MARKETPLACE | System Fee | Rp 0 |
-| FEE_POS | System Fee | Rp 0 |
-| FEE_SUPPLIER | System Fee | Rp 0 |
-| FEE_LOGISTICS | System Fee | Rp 0 |
-| TAX_SINK | Tax Collection | Rp 0 |
-
-### Cara Pendaftaran Pengguna Baru
-**Tidak ada akun seed untuk pengguna.** Setiap pengguna harus mendaftar sendiri melalui API atau frontend:
-
-1. **Via API (curl):**
-```bash
-curl -X POST http://localhost:6969/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Nama Lengkap",
-    "email": "user@example.com",
-    "phone": "081234567890",
-    "password": "securepassword123",
-    "pin": "123456"
-  }'
-```
-
-2. **Via Frontend:** Buka [http://localhost:6969](http://localhost:6969) atau [http://localhost:3001](http://localhost:3001) dan klik "Daftar".
-
-### Saldo Awal Pengguna Baru
-Setiap pengguna yang berhasil mendaftar akan secara otomatis mendapatkan saldo awal sebesar **Rp 50.000** dari pool Bank Sentral.
-
----
-
-## 🧪 8. Pengujian Integrasi Otomatis (E2E Test)
-
-Anda dapat memvalidasi seluruh alur kerja microservices secara otomatis menggunakan skrip pengujian E2E yang telah disediakan:
-
-### Cara Menjalankan Tes:
-1. Pastikan kedua server (Central Bank di port 3000 dan Wallet di port 6969) sedang berjalan (baik lewat Docker atau manual).
-2. Jalankan perintah berikut di root folder workspace:
-   ```bash
-   node scratch/test_integration.js
-   ```
-3. Skrip akan mengeksekusi 8 langkah skenario moneter terintegrasi dan memverifikasi integritas audit ledger moneter. Jika sukses, Anda akan melihat pesan:
-   `🎉 ALL E2E INTEGRATION TESTS PASSED SUCCESSFULLY! SmartBank E-Wallet and Central Bank Core are perfectly integrated as microservices.`
-
-### Skenario Test:
-1. ✅ User Registration (pendaftaran pengguna baru)
-2. ✅ User Login (login dan mendapatkan JWT token)
-3. ✅ Initial Balance Check (verifikasi saldo awal Rp 50.000)
-4. ✅ Loan Application (pengajuan Kredit UMKM Rp 10.000)
-5. ✅ Loan Disbursement (pencairan otomatis ke wallet - saldo menjadi Rp 60.000)
-6. ✅ Loan Repayment (pembayaran cicilan Rp 5.500)
-7. ✅ QR/Invoice Payment (pembayaran tagihan merchant)
-8. ✅ Transaction History (mutasi rekening/ledger audit trail)
-
----
-
-## 🔧 9. Command Reference (Package Scripts)
-
-| Command | Description |
-|---------|-------------|
-| `npm run start:cb` | Start Central Bank Core API (Port 3000) |
-| `npm run start:wallet` | Start SmartBank Wallet Backend (Port 6969) |
-| `npm run start:cb-ui` | Start SmartBank Frontend Next.js (Port 3001) |
-| `npm run cb:generate` | Generate Prisma Client |
-| `npm run cb:db-migrate` | Run Prisma migrations for Central Bank |
-| `npm run cb:db-seed` | Seed system accounts and monetary data |
-
----
-
-## 📁 Struktur Direktori
-
-```
-integration/
-├── Central-Bank/          # NestJS Backend (Tier-1)
-│   ├── prisma/           # Schema & Seed
-│   └── src/              # Core modules (auth, wallets, loans, etc.)
-├── Wallet/               # Express.js Backend (Tier-2)
-│   ├── src/              # Controllers, services, middleware
-│   └── postman/          # Postman collections
-├── frontend/             # Next.js Frontend (Port 3001)
-│   └── src/              # React components
-├── Gateway/              # API Gateway (optional)
-├── context/              # Project context & documentation
-├── scratch/              # Testing scripts
-│   └── test_integration.js  # E2E test suite
-├── docker-compose.yml    # Docker orchestration
-└── README.md             # This file
-```
-
----
-
-## 🏗️ Diagram Arsitektur & Alur Data
-
-Sistem beroperasi berdasarkan aturan moneter bank sentral, di mana mutasi saldo riil hanya dapat dipicu melalui permohonan aman (*payment request* / *transfer*) ke Central Bank Core:
+## Arsitektur
 
 ```mermaid
-graph TD
-    Client[Wallet Frontend - Port 3001] -->|HTTP| WalletUI[SmartBank UI]
-    Client2[Wallet Backend - Port 6969] -->|REST API & JWT| WalletBackend[Wallet Backend - Port 6969]
-    WalletBackend -->|API Gateway Client| CBCore[Central Bank Core API - Port 3000]
-    
-    CBCore -->|Prisma ORM| MySQL[(MySQL Database - Port 3306)]
-    WalletBackend -->|MySQL Client| MySQL
+flowchart LR
+    U["User / API Client"] --> F["Frontend :3001"]
+    U --> G["API Gateway :4000"]
+    F --> G
+    G --> W["Wallet Backend :6969"]
+    G --> C["Central Bank Core :3000"]
+    W --> C
+    W --> D[("MySQL :3306")]
+    C --> D
 ```
 
----
+Untuk pemakaian normal, frontend dan API client harus mengakses backend melalui
+API Gateway. Port `3000` dan `6969` tetap diekspos untuk health check,
+debugging, dan Swagger lokal.
 
-*Proyek ini adalah simulasi akademis untuk mata kuliah RPL 2. Tidak dikonfigurasi untuk produksi moneter perbankan sesungguhnya.*
+## Prasyarat
+
+- Docker Desktop dengan Docker Compose.
+- PowerShell untuk menjalankan contoh API pada README ini.
+- Port `3000`, `3001`, `3306`, `4000`, dan `6969` tidak sedang dipakai aplikasi lain.
+
+Pastikan file `.env` tersedia di root proyek. Nilai minimum yang dibutuhkan:
+
+```dotenv
+MYSQL_ROOT_PASSWORD=ganti_dengan_password_root
+MYSQL_DATABASE=central_bank_core
+MYSQL_USER=central_bank
+MYSQL_PASSWORD=ganti_dengan_password_database
+JWT_SECRET=ganti_dengan_secret_acak_minimal_32_karakter
+ENABLE_STAFF_SEED=true
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
+```
+
+Jangan commit file `.env` yang berisi kredensial asli.
+
+## Menjalankan Aplikasi
+
+Jalankan dari root proyek:
+
+```powershell
+docker compose up -d --build --wait
+docker compose ps
+```
+
+Semua service seharusnya berstatus `Up` dan `healthy`.
+
+| Layanan | URL | Kegunaan |
+|---|---|---|
+| Frontend | [http://localhost:3001](http://localhost:3001) | UI untuk Retail, Teller, dan Manager |
+| API Gateway | [http://localhost:4000/health](http://localhost:4000/health) | Pintu masuk API |
+| Wallet Swagger | [http://localhost:6969/api-docs](http://localhost:6969/api-docs) | Dokumentasi interaktif Wallet |
+| Wallet Backend | [http://localhost:6969](http://localhost:6969) | Health/debug langsung |
+| Central Bank Health | [http://localhost:3000/api/v1/health](http://localhost:3000/api/v1/health) | Health check Core |
+
+Perintah Docker yang umum:
+
+```powershell
+# Melihat log semua service
+docker compose logs -f
+
+# Melihat log satu service
+docker compose logs -f gateway
+docker compose logs -f wallet
+docker compose logs -f central-bank
+
+# Restart tanpa menghapus data
+docker compose restart
+
+# Menghentikan stack tanpa menghapus volume database
+docker compose down
+
+# Reset total, termasuk seluruh data MySQL
+docker compose down -v
+docker compose up -d --build --wait
+```
+
+Perhatian: `docker compose down -v` menghapus akun, transaksi, pinjaman, dan data
+lain yang tersimpan di volume MySQL.
+
+## Akun Pengujian
+
+Jika `ENABLE_STAFF_SEED=true`, Wallet membuat akun staf berikut saat startup:
+
+| Role | Email | Password | PIN |
+|---|---|---|---|
+| Teller | `teller@test.com` | `password` | `123456` |
+| Manager | `manager@test.com` | `password` | `123456` |
+
+Akun Retail dibuat melalui halaman Register. Registrasi publik selalu membuat
+role `WALLET_USER` dan memberikan saldo awal `Rp 50.000`.
+
+Tidak ada akun `CENTRAL_BANK_ADMIN` yang dibuat secara default.
+
+## Testing Manual Melalui UI
+
+### 1. Verifikasi Stack
+
+1. Jalankan `docker compose ps`.
+2. Buka [http://localhost:4000/health](http://localhost:4000/health).
+3. Pastikan respons memiliki `success: true`.
+4. Buka [http://localhost:3001](http://localhost:3001).
+
+### 2. Registrasi Dua Pengguna Retail
+
+Gunakan dua email dan nomor telepon yang berbeda.
+
+1. Buka `http://localhost:3001/register`.
+2. Isi nama, email, nomor telepon, password minimal 8 karakter, dan PIN 6 digit.
+3. Daftarkan User A, lalu catat email dan PIN-nya.
+4. Logout dan ulangi untuk User B.
+5. Setelah registrasi, user otomatis login dan saldo awal harus tampil
+   `Rp 50.000`.
+
+### 3. Testing Teller
+
+1. Login sebagai `teller@test.com` dengan password `password`.
+2. Cari User A menggunakan email, nomor telepon, atau User ID.
+3. Isi reason code, misalnya `MANUAL_TEST_KYC`.
+4. Klik verifikasi KYC dan pastikan status berubah menjadi terverifikasi.
+5. Lakukan top-up, misalnya `100000`, lalu periksa pesan sukses.
+6. Lakukan withdraw dengan nominal lebih kecil, misalnya `10000`.
+7. Cari User B dan catat `Wallet ID` yang ditampilkan. Wallet ID ini dipakai
+   sebagai tujuan transfer.
+
+### 4. Testing Transfer Retail
+
+1. Logout dari Teller, lalu login sebagai User A.
+2. Pada bagian Transfer, masukkan Wallet ID User B.
+3. Masukkan nominal, catatan, dan PIN User A.
+4. Klik `Kirim dana`.
+5. Pastikan muncul pesan sukses dan transaksi baru tampil di Aktivitas.
+6. Login sebagai User B dan pastikan saldo serta riwayat transaksi bertambah.
+
+Catatan:
+
+- Transfer ke Wallet ID sendiri akan ditolak.
+- Nominal harus berupa bilangan bulat positif.
+- Sistem menerapkan cooldown transaksi dan batas transaksi harian.
+- Biaya transaksi dapat membuat total debit lebih besar dari nominal transfer.
+
+### 5. Testing Pinjaman dan Manager
+
+1. Login sebagai User A.
+2. Ajukan pinjaman, misalnya `10000`.
+3. Pengajuan akan berstatus `PENDING` dan belum menambah saldo.
+4. Buka Developer Tools browser dengan `F12`, pilih tab Network, buka respons
+   request `loans/apply`, lalu catat `data.loan.id`.
+5. Logout dan login sebagai `manager@test.com`.
+6. Masukkan Loan ID pada bagian Keputusan Pinjaman.
+7. Isi reason code, misalnya `MANUAL_TEST_APPROVAL`.
+8. Klik `Setujui` atau `Tolak`.
+9. Jika disetujui, login kembali sebagai User A dan pastikan saldo bertambah.
+10. Untuk pembayaran, masukkan Loan ID, nominal pembayaran, dan PIN di dashboard
+    Retail.
+
+UI Manager saat ini belum menyediakan daftar pinjaman `PENDING`, sehingga Loan
+ID harus diambil dari respons API/Network.
+
+### 6. Testing Suspend dan Activate
+
+1. Login sebagai Manager.
+2. Cari User B menggunakan email, telepon, atau User ID.
+3. Isi reason code dan klik `Bekukan akun`.
+4. Pastikan User B tidak dapat login.
+5. Kembali ke dashboard Manager dan aktifkan kembali akun tersebut.
+6. Pastikan User B dapat login lagi.
+
+### Hasil Minimum yang Diharapkan
+
+- Semua halaman utama dapat dibuka tanpa error `502`.
+- Registrasi menghasilkan akun Retail dan saldo awal.
+- Teller dapat mencari user, verifikasi KYC, top-up, dan withdraw.
+- Transfer mengurangi saldo pengirim dan menambah saldo penerima.
+- Pinjaman tetap `PENDING` sebelum keputusan Manager.
+- Approve pinjaman mencairkan dana, sedangkan reject tidak mencairkan dana.
+- Suspend memblokir login dan activate memulihkan akses.
+
+## Testing API dengan PowerShell
+
+Semua contoh berikut menggunakan API Gateway:
+
+```powershell
+$baseUrl = "http://localhost:4000"
+```
+
+### Registrasi dan Login
+
+Gunakan email baru setiap kali mengulang registrasi.
+
+```powershell
+$email = "manual.$(Get-Date -Format 'yyyyMMddHHmmss')@test.local"
+$password = "password123"
+$pin = "123456"
+
+$registerBody = @{
+  name = "Manual API User"
+  email = $email
+  phone = "08$(Get-Random -Minimum 1000000000 -Maximum 1999999999)"
+  password = $password
+  pin = $pin
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/wallet/v1/auth/register" `
+  -ContentType "application/json" `
+  -Body $registerBody
+
+$loginBody = @{
+  email = $email
+  password = $password
+} | ConvertTo-Json
+
+$login = Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/wallet/v1/auth/login" `
+  -ContentType "application/json" `
+  -Body $loginBody
+
+$token = $login.data.accessToken
+$walletId = $login.data.user.walletId
+$authHeaders = @{
+  Authorization = "Bearer $token"
+  "X-Request-Id" = "manual-$([guid]::NewGuid())"
+}
+```
+
+### Cek Saldo dan Riwayat
+
+```powershell
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "$baseUrl/api/wallet/v1/wallets/me/balance" `
+  -Headers $authHeaders
+
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "$baseUrl/api/wallet/v1/wallets/me/transactions" `
+  -Headers $authHeaders
+```
+
+### Transfer
+
+Ganti `wal_tujuan` dengan Wallet ID pengguna lain.
+
+```powershell
+$transferHeaders = @{
+  Authorization = "Bearer $token"
+  "Idempotency-Key" = "$([guid]::NewGuid())"
+  "X-Wallet-Pin" = $pin
+}
+
+$transferBody = @{
+  to_wallet_id = "wal_tujuan"
+  amount = "1000"
+  note = "Manual API test"
+} | ConvertTo-Json
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/wallet/v1/transfers" `
+  -Headers $transferHeaders `
+  -ContentType "application/json" `
+  -Body $transferBody
+```
+
+### Ajukan Pinjaman
+
+```powershell
+$loanHeaders = @{
+  Authorization = "Bearer $token"
+  "Idempotency-Key" = "$([guid]::NewGuid())"
+}
+
+$loan = Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/wallet/v1/loans/apply" `
+  -Headers $loanHeaders `
+  -ContentType "application/json" `
+  -Body (@{ amount = "10000" } | ConvertTo-Json)
+
+$loan.data.loan
+```
+
+### Login Manager dan Setujui Pinjaman
+
+```powershell
+$managerLogin = Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/wallet/v1/auth/login" `
+  -ContentType "application/json" `
+  -Body (@{
+    email = "manager@test.com"
+    password = "password"
+  } | ConvertTo-Json)
+
+$managerHeaders = @{
+  Authorization = "Bearer $($managerLogin.data.accessToken)"
+  "Idempotency-Key" = "$([guid]::NewGuid())"
+}
+
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "$baseUrl/api/bank/manager/loans/approve" `
+  -Headers $managerHeaders `
+  -ContentType "application/json" `
+  -Body (@{
+    loanId = "ganti_dengan_loan_id"
+    reasonCode = "MANUAL_API_APPROVAL"
+  } | ConvertTo-Json)
+```
+
+## Konvensi API
+
+### Base URL
+
+| API | Base URL melalui Gateway |
+|---|---|
+| Wallet | `http://localhost:4000/api/wallet/v1` |
+| Central Bank | `http://localhost:4000/api/bank` |
+
+Gateway menghapus prefix tersebut sebelum meneruskan request ke service tujuan.
+
+### Header
+
+| Header | Kapan digunakan |
+|---|---|
+| `Authorization: Bearer <token>` | Semua endpoint protected |
+| `Content-Type: application/json` | Request dengan JSON body |
+| `Idempotency-Key: <nilai-unik>` | Operasi finansial dan mutasi penting |
+| `X-Wallet-Pin: <6 digit>` | Transfer, pembayaran invoice, top-up, withdraw, stimulus |
+| `X-Request-Id: <nilai-unik>` | Opsional untuk pelacakan log |
+
+PIN juga diterima melalui body dengan field `pin` atau `wallet_pin`, tetapi
+`X-Wallet-Pin` lebih disarankan untuk pengujian API.
+
+Gunakan Idempotency Key baru untuk transaksi baru. Mengulang request yang sama
+dengan key yang sama harus menghasilkan hasil yang konsisten. Jangan memakai
+key lama untuk payload yang berbeda.
+
+### Format Respons
+
+Respons Wallet dan Gateway menggunakan envelope berikut:
+
+```json
+{
+  "success": true,
+  "data": {},
+  "error": null,
+  "meta": {
+    "request_id": "req_example",
+    "timestamp": "2026-06-11T00:00:00.000Z"
+  }
+}
+```
+
+Contoh error:
+
+```json
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "BAD_REQUEST",
+    "message": "Data tidak valid",
+    "details": {}
+  },
+  "meta": {
+    "request_id": "req_example",
+    "timestamp": "2026-06-11T00:00:00.000Z"
+  }
+}
+```
+
+Gateway membatasi sekitar 100 request per menit per client.
+
+## Endpoint Wallet
+
+Semua path di tabel menggunakan base URL
+`http://localhost:4000/api/wallet/v1`.
+
+| Method | Path | Akses | Body/parameter utama |
+|---|---|---|---|
+| `POST` | `/auth/register` | Public | `name`, `email`, `phone`, `password`, `pin` |
+| `POST` | `/auth/login` | Public | `email`, `password` |
+| `GET` | `/wallets/me/balance` | JWT | Tidak ada |
+| `GET` | `/wallets/me/transactions` | JWT | Tidak ada |
+| `POST` | `/wallets/me/topup` | JWT + PIN | `amount` |
+| `POST` | `/wallets/me/withdraw` | JWT + PIN | `amount` |
+| `POST` | `/wallets/me/claim-stimulus` | JWT + PIN | Tidak ada |
+| `PUT` | `/wallets/me/profile` | JWT | `name`, opsional `phone` |
+| `PUT` | `/wallets/me/security` | JWT | `password` dan/atau `pin` |
+| `PUT` | `/wallets/me/upgrade` | JWT | `role`, `businessName`, `nik` |
+| `POST` | `/wallets/me/subscribe-insight` | JWT | Tidak ada |
+| `POST` | `/wallets/me/invoice/generate-test` | JWT, development | Membuat invoice uji |
+| `POST` | `/transfers` | Wallet User + PIN + Idempotency | `to_wallet_id`, `amount`, opsional `note` |
+| `POST` | `/payment-requests/:id/pay` | Wallet User + PIN + Idempotency | Path parameter `id` |
+| `POST` | `/loans/apply` | Wallet User + Idempotency | `amount` |
+| `POST` | `/loans/:loan_id/repay` | Wallet User + Idempotency | `amount` |
+
+Aturan payload penting:
+
+- Password registrasi harus 8 sampai 128 karakter.
+- PIN harus tepat 6 digit.
+- Nominal transaksi harus berupa bilangan bulat positif.
+- Role upgrade yang diterima: `MERCHANT`, `CASHIER`, `SUPPLIER`, `LOGISTICS`,
+  atau `ANALYTICS_VIEWER`.
+- NIK untuk upgrade harus berupa 16 digit.
+
+## Endpoint Central Bank
+
+Semua path di tabel menggunakan base URL
+`http://localhost:4000/api/bank`.
+
+| Method | Path | Role | Body/query utama |
+|---|---|---|---|
+| `POST` | `/auth/register` | Public | `name`, `email`, `password` |
+| `POST` | `/auth/login` | Public | `email`, `password` |
+| `GET` | `/health` | JWT via Gateway | Tidak ada |
+| `POST` | `/fees/quote` | JWT via Gateway | `source_app`, `amount` |
+| `GET` | `/wallets/me/balance` | Wallet User | Tidak ada |
+| `GET` | `/wallets/me/transactions` | Wallet User | Tidak ada |
+| `POST` | `/transfers` | Wallet User + Idempotency | `to_wallet_id`, `amount`, opsional `note` |
+| `POST` | `/payment-requests` | Wallet User + Idempotency | Detail payer, payee, nominal, deskripsi, expiry |
+| `POST` | `/payment-requests/:id/pay` | Wallet User + Idempotency | Path parameter `id` |
+| `POST` | `/loans/apply` | Wallet User + Idempotency | `amount`, opsional `purpose` |
+| `POST` | `/loans/:id/repay` | Wallet User + Idempotency | `amount` |
+| `GET` | `/teller/customer?query=...` | Teller atau Manager | Email, telepon, atau User ID |
+| `POST` | `/teller/kyc/verify` | Teller atau Manager | `userId`, opsional `reasonCode` |
+| `POST` | `/teller/top-up` | Teller/Manager + Idempotency | `userId`, `amount`, opsional `reasonCode` |
+| `POST` | `/teller/withdraw` | Teller/Manager + Idempotency | `userId`, `amount`, opsional `reasonCode` |
+| `POST` | `/manager/users/suspend` | Manager | `userId`, opsional `reasonCode` |
+| `POST` | `/manager/users/activate` | Manager | `userId`, opsional `reasonCode` |
+| `POST` | `/manager/loans/approve` | Manager + Idempotency | `loanId`, opsional `reasonCode` |
+| `POST` | `/manager/loans/reject` | Manager + Idempotency | `loanId`, opsional `reasonCode` |
+| `GET` | `/central-bank/supply` | Central Bank Admin | Tidak ada |
+| `GET` | `/central-bank/ledger` | Central Bank Admin | `account_id`, `transaction_id`, `from`, `to` |
+| `POST` | `/central-bank/reversals` | Central Bank Admin + Idempotency | `original_transaction_id`, `reason_code`, opsional `note` |
+
+Nilai `source_app` yang valid:
+
+- Fee quote: `TRANSFER`, `MARKETPLACE`, `POS`, `SUPPLIER`, `LOGISTICS`.
+- Payment request: `MARKETPLACE`, `POS`, `SUPPLIER`, `LOGISTICS`.
+
+Contoh body pembuatan payment request:
+
+```json
+{
+  "source_app": "MARKETPLACE",
+  "payer_wallet_id": "wal_payer",
+  "payee_wallet_id": "wal_merchant",
+  "gross_amount": "25000",
+  "description": "Pembelian barang uji",
+  "metadata": {
+    "order_id": "ORDER-001"
+  },
+  "expires_at": "2026-06-12T12:00:00.000Z"
+}
+```
+
+## Aturan Finansial Utama
+
+- Saldo awal pengguna: `Rp 50.000`.
+- Total money supply default: `Rp 1.000.000.000`.
+- Maksimum pinjaman default: `Rp 100.000`.
+- Bunga pinjaman flat: 10 persen.
+- Batas transaksi default: 10 transaksi per hari.
+- Cooldown transaksi default: 10 detik.
+- Transfer dan pembayaran dapat dikenai biaya bank, gateway, dan pajak.
+
+Nilai aktual dapat diubah melalui environment variable pada `docker-compose.yml`.
+
+## Troubleshooting
+
+### Container tidak healthy
+
+```powershell
+docker compose ps
+docker compose logs --tail 200 mysql
+docker compose logs --tail 200 central-bank
+docker compose logs --tail 200 wallet
+docker compose logs --tail 200 gateway
+docker compose logs --tail 200 frontend
+```
+
+### Frontend menampilkan 502
+
+1. Pastikan Gateway, Wallet, dan Central Bank berstatus healthy.
+2. Periksa `NEXT_PUBLIC_API_BASE_URL=http://localhost:4000`.
+3. Build ulang frontend setelah mengubah environment variable:
+
+```powershell
+docker compose up -d --build --wait frontend
+```
+
+### Login staf gagal
+
+1. Pastikan `.env` berisi `ENABLE_STAFF_SEED=true`.
+2. Restart Wallet:
+
+```powershell
+docker compose restart wallet
+docker compose logs --tail 100 wallet
+```
+
+### Error cooldown atau daily limit
+
+Tunggu minimal 10 detik sebelum mengulang transaksi. Jika batas harian tercapai,
+gunakan akun uji lain atau reset volume database khusus untuk lingkungan uji.
+
+### Port sudah digunakan
+
+Cari proses/container yang memakai port:
+
+```powershell
+docker ps
+Get-NetTCPConnection -State Listen |
+  Where-Object LocalPort -In 3000,3001,3306,4000,6969
+```
+
+## Struktur Direktori
+
+```text
+integration/
+|-- Central-Bank/       # NestJS Central Bank Core
+|-- Wallet/             # Express Wallet Backend dan Swagger
+|-- Gateway/            # Express API Gateway
+|-- frontend/           # Next.js role-based frontend
+|-- docker-compose.yml  # Orkestrasi seluruh service
+|-- .env                # Konfigurasi lokal, tidak boleh di-commit
+|-- memory.md           # Catatan perubahan lintas sesi
+`-- README.md
+```
+
+## Referensi Docker
+
+- [docker compose up](https://docs.docker.com/reference/cli/docker/compose/up/)
+- [docker compose logs](https://docs.docker.com/reference/cli/docker/compose/logs/)
+- [docker compose down](https://docs.docker.com/reference/cli/docker/compose/down/)

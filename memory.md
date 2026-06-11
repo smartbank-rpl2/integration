@@ -121,3 +121,10 @@ Untuk pengembangan di hari/sesi berikutnya, fokus pada langkah-langkah berikut:
   - Memperbaiki startup Central-Bank agar memakai `prisma migrate deploy` plus seed, menaruh `prisma` setelah install dependency untuk layer cache yang lebih baik, dan menghapus cache `*.tsbuildinfo` dari build context.
   - Menyelaraskan idempotency Wallet ke status `PROCESSING/COMPLETED`, lalu menambahkan migrasi Prisma `20260610152000_add_pending_loan_status` agar enum `loans.status` menerima `PENDING`.
   - Verifikasi akhir: `docker compose up -d --wait` sukses, semua container healthy, smoke test host 200 pada `3000/4000/3001/6969`, login staff `teller@test.com` dan `manager@test.com` PASS, KYC PASS, top-up PASS, balance PASS, dan loan apply PASS dengan status `PENDING`.
+
+- **[2026-06-11] README Manual Testing & API Documentation Refresh:**
+  - Mengganti README lama yang sudah tidak sinkron dengan panduan operasional berbasis Gateway port `4000`, frontend port `3001`, dan lifecycle Docker Compose terbaru.
+  - Menambahkan tata cara testing manual untuk user Retail, Teller, dan Manager: registrasi dua user, verifikasi KYC, top-up/withdraw, transfer, apply loan, approve/reject loan, suspend, dan activate.
+  - Mendokumentasikan akun seed `teller@test.com` dan `manager@test.com`, requirement `ENABLE_STAFF_SEED=true`, cara mengambil Loan ID dari Network/API karena UI belum punya daftar loan `PENDING`, serta catatan bahwa akun `CENTRAL_BANK_ADMIN` tidak dibuat default.
+  - Menambahkan katalog endpoint Wallet dan Central-Bank via Gateway, header `Authorization`, `Idempotency-Key`, `X-Wallet-Pin`, format respons, contoh PowerShell API, aturan finansial utama, dan troubleshooting Docker.
+  - Validasi: semua container `healthy`; Gateway health PASS; Wallet root HTTP 200; Central-Bank health PASS; frontend `/login` HTTP 200; smoke test API PASS untuk register dua user, login, balance awal Rp50.000, transfer dengan PIN, loan apply, Manager approve, dan verifikasi transaksi `LOAN_DISBURSEMENT`.
