@@ -588,8 +588,8 @@ export const centralBankService = {
     if (!wallet) throw new CustomError('NOT_FOUND', 'Wallet tidak ditemukan', 404);
 
     const remaining = loan.total_due - loan.paid_amount;
-    // Allow overpayment up to remaining + 0.01 margin due to integer precision or strictness
-    if (amount <= 0 || (amount > remaining && amount !== remaining)) {
+    // Allow overpayment up to remaining + 100 unit margin (precision / grace)
+    if (amount <= 0 || amount > remaining + 100) {
       throw new CustomError('BAD_REQUEST', `Jumlah pembayaran tidak valid. Sisa tagihan: ${remaining}`, 400);
     }
 
