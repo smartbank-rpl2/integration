@@ -149,11 +149,11 @@ export class ManagerService {
     requestId: string;
     reasonCode?: string;
   }) {
-    const loan = await this.prisma.loan.findUnique({ where: { id: input.loanId } });
-    if (!loan) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan tidak ditemukan');
-    if (loan.status !== 'PENDING') throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan tidak dalam status PENDING');
-
     return this.prisma.$transaction(async (tx) => {
+      const loan = await tx.loan.findUnique({ where: { id: input.loanId } });
+      if (!loan) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan tidak ditemukan');
+      if (loan.status !== 'PENDING') throw new AppError(ErrorCode.VALIDATION_ERROR, 'Loan tidak dalam status PENDING');
+
       const updated = await tx.loan.update({
         where: { id: input.loanId },
         data: { status: 'REJECTED' },

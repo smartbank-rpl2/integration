@@ -586,6 +586,11 @@ export class SettlementService {
         if (idem.replay) return idem.response;
         await tx.$queryRaw(Prisma.sql`SELECT id FROM loans WHERE id = ${input.loanId} FOR UPDATE`);
         const loan = await tx.loan.findUniqueOrThrow({ where: { id: input.loanId } });
+
+        if (loan.status === 'PAID') {
+          throw new AppError(ErrorCode.VALIDATION_ERROR, 'Pinjaman sudah lunas');
+        }
+
         const remaining = loan.totalDue - loan.paidAmount;
         if (input.amount <= 0n || input.amount > remaining) {
           throw new AppError(ErrorCode.VALIDATION_ERROR, 'Amount repayment tidak valid');

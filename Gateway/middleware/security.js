@@ -5,7 +5,7 @@ const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
 export const requestContext = (req, res, next) => {
   const suppliedId = req.headers['x-request-id'];
   req.id = typeof suppliedId === 'string' && REQUEST_ID_PATTERN.test(suppliedId)
-    ? suppliedId
+    ? suppliedId.slice(0, 128)
     : `req_${crypto.randomUUID()}`;
   req.headers['x-request-id'] = req.id;
   res.setHeader('X-Request-Id', req.id);

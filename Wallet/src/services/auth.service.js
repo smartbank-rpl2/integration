@@ -112,14 +112,14 @@ export const authService = {
           // Fallback: decode from JWT if fields missing
           if (!userId && cbToken) {
             try {
-              const payload = jwt.verify(cbToken, config.jwt.secret, {
-                issuer: config.jwt.issuer,
-                audience: config.jwt.audience,
-              });
-              userId = payload.sub || payload.userId;
-              userRole = payload.role || userRole;
-              if (!userName) userName = payload.name;
-              if (!walletId) walletId = payload.walletId;
+              // Extract payload without verifying signature since it's signed by CB, not Wallet
+              const decoded = jwt.decode(cbToken);
+              if (decoded) {
+                userId = decoded.sub || decoded.userId;
+                userRole = decoded.role || userRole;
+                if (!userName) userName = decoded.name;
+                if (!walletId) walletId = decoded.walletId;
+              }
             } catch (e) { /* ignore */ }
           }
 

@@ -100,8 +100,18 @@ export const db = {
       throw new Error('MySQL is not active — cannot execute queries');
     }
 
-    // Translate PostgreSQL $1, $2 … placeholders to ?
-    const mysqlText = text.replace(/\$\d+/g, '?');
+    // Translate PostgreSQL $1, $2 … placeholders to ? safely (ignoring strings)
+    let mysqlText = '';
+    let inString = false;
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] === "'") inString = !inString;
+      if (!inString && text[i] === '$' && /\d/.test(text[i+1] || '')) {
+        mysqlText += '?';
+        while (/\d/.test(text[i+1] || '')) i++;
+      } else {
+        mysqlText += text[i];
+      }
+    }
 
     try {
       const [rows] = await pool.query(mysqlText, params);

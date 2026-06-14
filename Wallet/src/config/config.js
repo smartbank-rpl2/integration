@@ -31,6 +31,7 @@ export const config = {
   cbdc: {
     cooldownSeconds: parseInt(process.env.COOLDOWN_SECONDS || '10', 10),
     dailyLimitCount: parseInt(process.env.DAILY_LIMIT_COUNT || '10', 10),
+    maxTransferPerTx: parseInt(process.env.MAX_TRANSFER_PER_TX || '50000', 10),
   },
   security: {
     enableStaffSeed: process.env.ENABLE_STAFF_SEED === 'true',

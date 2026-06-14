@@ -92,7 +92,7 @@ export const walletController = {
              identity_document_name = ?,
              identity_document_data_url = ?,
              identity_document_uploaded_at = CURRENT_TIMESTAMP(3),
-             kyc_tier = 'BASIC',
+             kyc_tier = CASE WHEN kyc_tier = 'VERIFIED' THEN 'VERIFIED' ELSE 'PENDING' END,
              updated_at = CURRENT_TIMESTAMP(3)
          WHERE id = ?`,
         [documentType, documentNumber.trim(), documentName.trim(), documentDataUrl, userId]
@@ -104,7 +104,7 @@ export const walletController = {
 
       return responseHelper.success(res, {
         message: 'Dokumen identitas berhasil diunggah dan menunggu verifikasi Teller',
-        kycTier: 'BASIC',
+        kycTier: 'PENDING',
         documentType,
         documentNumber: documentNumber.trim(),
         documentName: documentName.trim(),
@@ -203,6 +203,9 @@ export const walletController = {
       }
       
       const cleanPhone = phone ? phone.trim() : null;
+      if (cleanPhone && !/^\+?[1-9]\d{6,14}$/.test(cleanPhone)) {
+        return responseHelper.error(res, 'BAD_REQUEST', 'Format nomor telepon tidak valid', 400);
+      }
       
       // Check phone uniqueness if changing
       if (cleanPhone) {
@@ -237,6 +240,9 @@ export const walletController = {
       }
       
       if (password) {
+        if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+          return responseHelper.error(res, 'BAD_REQUEST', 'Password harus 8-128 karakter', 400);
+        }
         const passwordHash = bcrypt.hashSync(password, 10);
         await db.query(
           'UPDATE users SET password_hash = $1 WHERE id = $2',
