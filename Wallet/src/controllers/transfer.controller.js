@@ -20,8 +20,9 @@ export const transferController = {
         );
       }
 
-      const transferAmount = parseInt(amount, 10);
-      if (isNaN(transferAmount) || transferAmount <= 0) {
+      const amountText = String(amount);
+      const transferAmount = Number(amountText);
+      if (!/^\d+$/.test(amountText) || !Number.isSafeInteger(transferAmount) || transferAmount <= 0) {
         return responseHelper.error(
           res, 
           'BAD_REQUEST', 
@@ -49,6 +50,14 @@ export const transferController = {
         idempotencyKey,
         token
       );
+      console.log({
+        timestamp: new Date().toISOString(),
+        request_id: req.id,
+        user_id: req.user.userId,
+        action: transferAmount >= 10_000_000 ? 'large_transfer_completed' : 'transfer_completed',
+        ip: req.ip,
+        amount: transferAmount,
+      });
 
       // Return successful receipt
       return responseHelper.success(res, {

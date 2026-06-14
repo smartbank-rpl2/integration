@@ -1,22 +1,38 @@
-FROM node:20-alpine
+FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Copy package configurations and prisma schema
 COPY package*.json ./
-COPY prisma ./prisma/
 
-# Install dependencies (development dependencies are required for building and seeding)
-RUN npm install
+RUN npm ci --no-audit --no-fund
 
-# Copy application source code
-COPY . .
+COPY nest-cli.json tsconfig*.json ./
+COPY prisma ./prisma
+COPY src ./src
 
-# Generate Prisma Client and compile NestJS to JavaScript
-RUN npx prisma generate
-RUN npm run build
+RUN npx prisma generate \
+  && npm run build \
+  && npx tsc prisma/seed.ts \
+    --outDir dist-seed \
+    --module commonjs \
+    --target ES2021 \
+    --esModuleInterop \
+    --skipLibCheck \
+  && npm prune --omit=dev --no-audit --no-fund
+
+FROM node:20-alpine AS runtime
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/dist ./dist
+COPY --chown=node:node --from=build /app/dist-seed ./dist-seed
+COPY --chown=node:node --from=build /app/prisma ./prisma
 
 EXPOSE 3000
 
-# Execute database migrations/push, seed initial values, and run the compiled NestJS service
-CMD ["sh", "-c", "npx prisma db push --accept-data-loss && npm run prisma:seed && node dist/main.js"]
+USER node
+
+CMD ["sh", "-c", "./node_modules/.bin/prisma migrate deploy && node dist-seed/seed.js && exec node dist/main.js"]

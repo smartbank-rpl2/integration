@@ -1,5 +1,5 @@
 import { Body, Controller, Post, Req } from '@nestjs/common';
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { Request } from 'express';
 import { CurrentUser, RequestUser } from '../../common/current-user.decorator';
 import { requireIdempotencyKey, requestHash, requestId } from '../../common/request-utils';
@@ -11,13 +11,19 @@ import { SettlementService } from './settlement.service';
 
 class TransferDto {
   @IsNotEmpty()
+  @IsString()
+  @MaxLength(191)
   to_wallet_id!: string;
 
   @IsNotEmpty()
+  @IsString()
+  @MaxLength(30)
+  @Matches(/^\d+$/, { message: 'amount must be a numeric string' })
   amount!: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   note?: string;
 }
 

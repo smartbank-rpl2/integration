@@ -125,6 +125,7 @@ export default function LoginPage() {
             <p className="font-semibold text-foreground mb-2">Dummy Accounts (Pass: password):</p>
             <p><span className="text-primary font-mono">teller@test.com</span> (Teller)</p>
             <p><span className="text-primary font-mono">manager@test.com</span> (Manager)</p>
+            <p><span className="text-primary font-mono">admin@test.com</span> (Central Bank Admin)</p>
           </div>
           <div className="pt-2 border-t border-border/50">
             Don&apos;t have a retail account? <a href="/register" className="text-primary font-medium hover:underline">Register Here</a>

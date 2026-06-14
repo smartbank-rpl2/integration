@@ -54,14 +54,21 @@ async function seedStaffAccountsToMySQL() {
       phone: '081100000002',
       role: 'MANAGER',
     },
+    {
+      id: 'staff-admin-001',
+      name: 'Admin Bank Sentral',
+      email: 'admin@test.com',
+      phone: '081100000003',
+      role: 'CENTRAL_BANK_ADMIN',
+    },
   ];
 
   for (const acc of staffAccounts) {
     try {
       await pool.execute(
-        `INSERT INTO users (id, name, email, phone, password_hash, pin_hash, kyc_tier, status, role)
-         VALUES (?, ?, ?, ?, ?, ?, 'VERIFIED', 'ACTIVE', ?)
-         ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), password_hash=VALUES(password_hash)`,
+        `INSERT INTO users (id, name, email, phone, password_hash, pin_hash, kyc_tier, status, role, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'VERIFIED', 'ACTIVE', ?, CURRENT_TIMESTAMP(3))
+         ON DUPLICATE KEY UPDATE name=VALUES(name), phone=VALUES(phone), password_hash=VALUES(password_hash), updated_at=CURRENT_TIMESTAMP(3)`,
         [acc.id, acc.name, acc.email, acc.phone, staffPassword, pinHash, acc.role]
       );
       console.log(`✅ Staff seeded: ${acc.email}`);

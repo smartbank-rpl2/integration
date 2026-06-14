@@ -74,6 +74,9 @@ describe('SettlementService teller settlement classification', () => {
     ]);
     const tx = {
       $queryRaw: jest.fn(),
+      user: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'user-1', kycTier: 'VERIFIED' }),
+      },
       walletAccount: {
         findUniqueOrThrow: jest.fn(({ where }) => {
           if (where.accountCode === 'CENTRAL_RESERVE') return Promise.resolve(reserve);

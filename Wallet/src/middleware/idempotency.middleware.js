@@ -10,16 +10,16 @@ import { db } from '../config/database.js';
  * Flow:
  *  1. Lookup existing key → if found & payload matches → return cached response
  *  2. If found & payload MISMATCHES → REJECT (replay attack prevention)
- *  3. If not found → INSERT a PENDING record (acts as a lock via UNIQUE constraint)
+ *  3. If not found → INSERT a PROCESSING record (acts as a lock via UNIQUE constraint)
  *     - On duplicate key error from race: re-query and return cached response
  *  4. Proceed to handler which calls res.json()
- *  5. Intercepted res.json() updates the PENDING record to COMPLETED
+ *  5. Intercepted res.json() updates the PROCESSING record to COMPLETED
  */
 export const idempotencyMiddleware = async (req, res, next) => {
   const key = req.headers['idempotency-key'];
-  const requestId = req.headers['x-request-id'] || 'req_unknown';
+  const requestId = req.id || req.headers['x-request-id'] || 'req_unknown';
 
-  if (!key) {
+  if (typeof key !== 'string' || !/^[A-Za-z0-9._:-]{8,191}$/.test(key)) {
     return res.status(400).json({
       success: false,
       data: null,
@@ -56,10 +56,7 @@ export const idempotencyMiddleware = async (req, res, next) => {
           error: {
             code: 'IDEMPOTENCY_CONFLICT',
             message: 'Idempotency-Key sudah digunakan dengan payload yang berbeda. Penolakan untuk menghindari inkonsistensi.',
-            details: {
-              original_request_at: cached.created_at,
-              original_route: cached.route,
-            },
+            details: {},
           },
           meta: { request_id: requestId, timestamp: new Date().toISOString() },
         });
@@ -100,7 +97,7 @@ export const idempotencyMiddleware = async (req, res, next) => {
         [
           crypto.randomUUID(), key, route, clientId, hashPayload,
           JSON.stringify({ statusCode: 0, body: null }),
-          'PENDING', new Date(), new Date(),
+          'PROCESSING', new Date(), new Date(),
         ]
       );
     } catch (insertErr) {
@@ -148,7 +145,7 @@ export const idempotencyMiddleware = async (req, res, next) => {
         db.query(
           `UPDATE idempotency_keys
              SET response_body = ?, status = 'COMPLETED', updated_at = ?
-           WHERE idempotency_key = ? AND status = 'PENDING'`,
+           WHERE idempotency_key = ? AND status = 'PROCESSING'`,
           [JSON.stringify(wrapper), new Date(), key]
         ).catch((err) =>
           console.error('⚠️ Gagal mengupdate idempotency record:', err.message)
@@ -167,7 +164,7 @@ export const idempotencyMiddleware = async (req, res, next) => {
       error: {
         code: 'IDEMPOTENCY_ERROR',
         message: 'Gagal memeriksa idempotency key',
-        details: { original_error: err.message },
+        details: {},
       },
       meta: { request_id: requestId, timestamp: new Date().toISOString() },
     });

@@ -14,5 +14,5 @@ export function requestHash(body: unknown): string {
 }
 
 export function requestId(req: Request): string {
-  return req.header('x-request-id') ?? 'missing-request-id';
+  return (req as Request & { id?: string }).id ?? req.header('x-request-id') ?? 'missing-request-id';
 }

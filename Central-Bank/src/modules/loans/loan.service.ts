@@ -4,6 +4,8 @@ import { randomUUID } from 'crypto';
 import { MoneyService } from '../money/money.service';
 import { IdempotencyService } from '../idempotency/idempotency.service';
 import { Prisma } from '@prisma/client';
+import { AppError } from '../../common/app-error';
+import { ErrorCode } from '../../common/error-codes';
 
 function asJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value, (_key, current) => (typeof current === 'bigint' ? current.toString() : current)));
@@ -27,11 +29,23 @@ export class LoanService {
     idempotency: { key: string; route: string; actorId: string; requestHash: string };
   }) {
     this.money.assertPositive(input.amount);
-    if (input.amount > 100000n) throw new Error('Limit pinjaman maksimal 100000');
+    if (input.amount > 100000n) throw new AppError(ErrorCode.LOAN_LIMIT_EXCEEDED, 'Limit pinjaman maksimal 100000');
 
     return this.prisma.$transaction(async (tx) => {
       const idem = await this.idempotency.start(tx, input.idempotency);
       if (idem.replay) return idem.response;
+
+      const wallet = await tx.walletAccount.findUnique({
+        where: { id: input.borrowerWalletId },
+        include: { user: true },
+      });
+      if (!wallet?.user) throw new AppError(ErrorCode.VALIDATION_ERROR, 'Wallet peminjam tidak valid');
+      if (wallet.user.kycTier !== 'VERIFIED') {
+        throw new AppError(
+          ErrorCode.FORBIDDEN,
+          'Pengajuan pinjaman hanya tersedia untuk nasabah yang sudah terverifikasi KYC.',
+        );
+      }
 
       const outstanding = await tx.loan.aggregate({
         where: { borrowerWalletId: input.borrowerWalletId, status: { in: ['PENDING', 'DISBURSED', 'PARTIAL_PAID'] } },
@@ -40,7 +54,7 @@ export class LoanService {
 
       const currentOutstanding = (outstanding._sum.principal ?? 0n) - (outstanding._sum.paidAmount ?? 0n);
       if (currentOutstanding + input.amount > 100000n) {
-        throw new Error('Outstanding loan melebihi limit');
+        throw new AppError(ErrorCode.LOAN_LIMIT_EXCEEDED, 'Outstanding loan melebihi limit');
       }
 
       const interest = this.money.tenPercent(input.amount);

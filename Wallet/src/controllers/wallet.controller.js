@@ -34,6 +34,86 @@ export const walletController = {
     }
   },
 
+  // GET /api/v1/wallets/me/kyc-document
+  getKycDocument: async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      const result = await db.query(
+        `SELECT kyc_tier, identity_document_type, identity_document_number, identity_document_name,
+                identity_document_data_url, identity_document_uploaded_at
+         FROM users WHERE id = ?`,
+        [userId]
+      );
+
+      if (result.rowCount === 0) {
+        return responseHelper.error(res, 'NOT_FOUND', 'Pengguna tidak ditemukan', 404);
+      }
+
+      const row = result.rows[0];
+      return responseHelper.success(res, {
+        kycTier: row.kyc_tier,
+        documentType: row.identity_document_type,
+        documentNumber: row.identity_document_number,
+        documentName: row.identity_document_name,
+        documentDataUrl: row.identity_document_data_url,
+        uploadedAt: row.identity_document_uploaded_at,
+        hasDocument: Boolean(row.identity_document_data_url),
+      }, 200);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  // PUT /api/v1/wallets/me/kyc-document
+  updateKycDocument: async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      const { documentType, documentNumber, documentName, documentDataUrl } = req.body;
+      const allowedTypes = ['KTP', 'SIM', 'PASSPORT'];
+      const dataUrlPattern = /^data:(image\/(png|jpeg|webp)|application\/pdf);base64,[A-Za-z0-9+/=]+$/;
+
+      if (!allowedTypes.includes(documentType)) {
+        return responseHelper.error(res, 'BAD_REQUEST', 'Jenis dokumen harus KTP, SIM, atau PASSPORT', 400);
+      }
+      if (typeof documentNumber !== 'string' || !/^[A-Za-z0-9.-]{6,32}$/.test(documentNumber.trim())) {
+        return responseHelper.error(res, 'BAD_REQUEST', 'Nomor dokumen harus 6-32 karakter alfanumerik', 400);
+      }
+      if (typeof documentName !== 'string' || documentName.trim().length < 3 || documentName.trim().length > 120) {
+        return responseHelper.error(res, 'BAD_REQUEST', 'Nama pada dokumen wajib diisi 3-120 karakter', 400);
+      }
+      if (typeof documentDataUrl !== 'string' || documentDataUrl.length > 650000 || !dataUrlPattern.test(documentDataUrl)) {
+        return responseHelper.error(res, 'BAD_REQUEST', 'File dokumen harus berupa PNG, JPG, WEBP, atau PDF maksimal sekitar 500KB', 400);
+      }
+
+      const update = await db.query(
+        `UPDATE users
+         SET identity_document_type = ?,
+             identity_document_number = ?,
+             identity_document_name = ?,
+             identity_document_data_url = ?,
+             identity_document_uploaded_at = CURRENT_TIMESTAMP(3),
+             kyc_tier = 'BASIC',
+             updated_at = CURRENT_TIMESTAMP(3)
+         WHERE id = ?`,
+        [documentType, documentNumber.trim(), documentName.trim(), documentDataUrl, userId]
+      );
+
+      if (update.rowCount === 0) {
+        return responseHelper.error(res, 'NOT_FOUND', 'Pengguna tidak ditemukan', 404);
+      }
+
+      return responseHelper.success(res, {
+        message: 'Dokumen identitas berhasil diunggah dan menunggu verifikasi Teller',
+        kycTier: 'BASIC',
+        documentType,
+        documentNumber: documentNumber.trim(),
+        documentName: documentName.trim(),
+      }, 200);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   // POST /api/v1/wallets/me/invoice/generate-test (Convenience testing helper)
   generateTestInvoice: async (req, res, next) => {
     try {
