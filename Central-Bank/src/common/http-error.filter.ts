@@ -13,12 +13,21 @@ export class HttpErrorFilter implements ExceptionFilter {
     const body = exception instanceof HttpException ? exception.getResponse() : {};
     const typed = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {};
     const code = typeof typed.code === 'string' ? typed.code : ErrorCode.DATABASE_TRANSACTION_FAILED;
-    const message =
-      typeof typed.message === 'string'
+    const isServerError = status >= HttpStatus.INTERNAL_SERVER_ERROR;
+    const message = isServerError
+      ? 'Terjadi kesalahan sistem internal'
+      : typeof typed.message === 'string'
         ? typed.message
-        : exception instanceof Error
-          ? exception.message
-          : 'Terjadi kesalahan internal';
+        : 'Permintaan tidak dapat diproses';
+
+    if (isServerError) {
+      console.error({
+        timestamp: new Date().toISOString(),
+        request_id: request.header('x-request-id') ?? 'missing-request-id',
+        action: 'unhandled_central_bank_error',
+        error_type: exception instanceof Error ? exception.name : typeof exception,
+      });
+    }
 
     response.status(status).json({
       success: false,
@@ -26,7 +35,7 @@ export class HttpErrorFilter implements ExceptionFilter {
       error: {
         code,
         message,
-        details: typed.details ?? {},
+        details: isServerError ? {} : (typed.details ?? {}),
       },
       meta: {
         request_id: request.header('x-request-id') ?? randomUUID(),

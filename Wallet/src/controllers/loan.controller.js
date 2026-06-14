@@ -18,8 +18,9 @@ export const loanController = {
         );
       }
 
-      const loanAmount = parseInt(amount, 10);
-      if (isNaN(loanAmount) || loanAmount <= 0) {
+      const amountText = String(amount);
+      const loanAmount = Number(amountText);
+      if (!/^\d+$/.test(amountText) || !Number.isSafeInteger(loanAmount) || loanAmount <= 0) {
         return responseHelper.error(
           res,
           'BAD_REQUEST',
@@ -58,8 +59,9 @@ export const loanController = {
         );
       }
 
-      const payAmount = parseInt(amount, 10);
-      if (isNaN(payAmount) || payAmount <= 0) {
+      const amountText = String(amount);
+      const payAmount = Number(amountText);
+      if (!/^\d+$/.test(amountText) || !Number.isSafeInteger(payAmount) || payAmount <= 0 || typeof loanId !== 'string' || loanId.length > 191) {
         return responseHelper.error(
           res,
           'BAD_REQUEST',

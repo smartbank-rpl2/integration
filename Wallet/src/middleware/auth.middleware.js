@@ -3,7 +3,8 @@ import { config } from '../config/config.js';
 
 export const authMiddleware = (req, res, next) => {
   const authHeader = req.headers['authorization'];
-  
+  const requestId = req.id || req.headers['x-request-id'] || 'req_unknown';
+
   if (!authHeader) {
     return res.status(401).json({
       success: false,
@@ -13,10 +14,7 @@ export const authMiddleware = (req, res, next) => {
         message: 'Token otorisasi diperlukan di header Authorization',
         details: {}
       },
-      meta: {
-        request_id: req.headers['x-request-id'] || 'req_unknown',
-        timestamp: new Date().toISOString()
-      }
+      meta: { request_id: requestId, timestamp: new Date().toISOString() }
     });
   }
 
@@ -30,32 +28,32 @@ export const authMiddleware = (req, res, next) => {
         message: 'Format token harus berupa Bearer <token>',
         details: {}
       },
-      meta: {
-        request_id: req.headers['x-request-id'] || 'req_unknown',
-        timestamp: new Date().toISOString()
-      }
+      meta: { request_id: requestId, timestamp: new Date().toISOString() }
     });
   }
 
   const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, config.jwt.secret);
+    const decoded = jwt.verify(token, config.jwt.secret, { issuer: config.jwt.issuer, audience: config.jwt.audience });
     req.user = decoded; // Attach user info (userId, name, email, walletId) to request
     next();
   } catch (err) {
+    console.error({
+      timestamp: new Date().toISOString(),
+      request_id: requestId,
+      action: 'jwt_verification_failed',
+      error_type: err.name,
+    });
     return res.status(401).json({
       success: false,
       data: null,
       error: {
         code: 'UNAUTHORIZED',
         message: 'Token kedaluwarsa atau tidak valid',
-        details: { original_error: err.message }
+        details: {}
       },
-      meta: {
-        request_id: req.headers['x-request-id'] || 'req_unknown',
-        timestamp: new Date().toISOString()
-      }
+      meta: { request_id: requestId, timestamp: new Date().toISOString() }
     });
   }
 };

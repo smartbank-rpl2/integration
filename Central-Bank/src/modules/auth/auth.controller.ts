@@ -17,12 +17,13 @@ export class AuthController {
       requestId: requestId(req),
       idempotencyKey: requireIdempotencyKey(req),
       requestHash: requestHash(dto),
+      ip: req.ip ?? req.socket.remoteAddress ?? 'unknown',
     });
   }
 
   @Public()
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.email, dto.password);
+  login(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.auth.login(dto.email, dto.password, requestId(req), req.ip ?? req.socket.remoteAddress ?? 'unknown');
   }
 }

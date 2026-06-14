@@ -7,6 +7,7 @@ import { ErrorCode } from '../../common/error-codes';
 import { IdempotencyService } from '../idempotency/idempotency.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettlementService } from '../settlement/settlement.service';
+import { AuditLogService } from '../audit/audit-log.service';
 
 function jsonSafe(value: unknown) {
   return JSON.parse(JSON.stringify(value, (_key, current) => (typeof current === 'bigint' ? current.toString() : current)));
@@ -19,6 +20,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly settlement: SettlementService,
     private readonly idempotency: IdempotencyService,
+    private readonly audit: AuditLogService,
   ) {}
 
   async register(input: {
@@ -28,6 +30,7 @@ export class AuthService {
     requestId: string;
     idempotencyKey: string;
     requestHash: string;
+    ip: string;
   }) {
     const passwordHash = await bcrypt.hash(input.password, 10);
     const userId = randomUUID();
@@ -83,12 +86,22 @@ export class AuthService {
         responseBody: jsonSafe(response) as never,
       }),
     );
+    await this.audit.record({
+      actorUserId: userId,
+      serviceName: 'centralbank-core',
+      action: 'USER_REGISTERED',
+      targetType: 'user',
+      targetId: userId,
+      requestId: input.requestId,
+      metadata: { ip: input.ip },
+    });
     return response;
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string, requestId: string, ip: string) {
+    const normalizedEmail = email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
       include: {
         wallets: {
           where: { accountType: 'USER_WALLET' },
@@ -97,8 +110,25 @@ export class AuthService {
       }
     });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      await this.audit.record({
+        serviceName: 'centralbank-core',
+        action: 'LOGIN_FAILED',
+        targetType: 'login_email',
+        targetId: normalizedEmail,
+        requestId,
+        metadata: { ip },
+      });
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Email atau password salah');
     }
+    await this.audit.record({
+      actorUserId: user.id,
+      serviceName: 'centralbank-core',
+      action: 'LOGIN_SUCCESS',
+      targetType: 'user',
+      targetId: user.id,
+      requestId,
+      metadata: { ip },
+    });
     const token = this.jwt.sign({ sub: user.id, email: user.email, role: user.role, name: user.name });
     return {
       access_token: token,

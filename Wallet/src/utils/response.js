@@ -2,7 +2,7 @@
 
 export const responseHelper = {
   success: (res, data, statusCode = 200, message = 'Success') => {
-    const requestId = res.req?.headers['x-request-id'] || 'req_unknown';
+    const requestId = res.req?.id || res.req?.headers['x-request-id'] || 'req_unknown';
     
     return res.status(statusCode).json({
       success: true,
@@ -16,7 +16,7 @@ export const responseHelper = {
   },
 
   error: (res, code, message, statusCode = 400, details = {}) => {
-    const requestId = res.req?.headers['x-request-id'] || 'req_unknown';
+    const requestId = res.req?.id || res.req?.headers['x-request-id'] || 'req_unknown';
 
     return res.status(statusCode).json({
       success: false,

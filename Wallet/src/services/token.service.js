@@ -7,13 +7,13 @@ export const tokenService = {
     const accessToken = jwt.sign(
       { ...userPayload, sub: userPayload.userId },
       config.jwt.secret,
-      { expiresIn: config.jwt.accessExpires }
+      { expiresIn: config.jwt.accessExpires, issuer: config.jwt.issuer, audience: config.jwt.audience }
     );
 
     const refreshToken = jwt.sign(
       { userId: userPayload.userId },
       config.jwt.secret,
-      { expiresIn: config.jwt.refreshExpires }
+      { expiresIn: config.jwt.refreshExpires, issuer: config.jwt.issuer, audience: config.jwt.audience }
     );
 
     return {

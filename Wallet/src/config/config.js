@@ -1,13 +1,20 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+
 export const config = {
   port: parseInt(process.env.PORT || '6969', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
+  trustProxy: process.env.TRUST_PROXY === 'true',
   jwt: {
-    secret: process.env.JWT_SECRET || 'supersecret-cbdc-smartbank-wallet-key-2026',
+    secret: process.env.JWT_SECRET,
     accessExpires: parseInt(process.env.JWT_ACCESS_EXPIRES || '3600', 10),
     refreshExpires: parseInt(process.env.JWT_REFRESH_EXPIRES || '604800', 10),
+    issuer: process.env.JWT_ISSUER || 'smartbank',
+    audience: process.env.JWT_AUDIENCE || 'smartbank-clients',
   },
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
