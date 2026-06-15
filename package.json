@@ -9,6 +9,11 @@
     "start:cb-ui": "npm --prefix Central-Bank run frontend:dev",
     "cb:db-migrate": "npm --prefix Central-Bank run prisma:migrate",
     "cb:db-seed": "npm --prefix Central-Bank run prisma:seed",
-    "cb:generate": "npm --prefix Central-Bank run prisma:generate"
+    "cb:generate": "npm --prefix Central-Bank run prisma:generate",
+    "start:local": "concurrently \"npm:start:cb\" \"npm:start:wallet\" \"npm:start:gateway\" \"npm:start:cb-ui\"",
+    "start:gateway": "npm --prefix Gateway run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3"
   }
 }

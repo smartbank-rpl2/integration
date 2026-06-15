@@ -592,7 +592,7 @@ export class SettlementService {
         }
 
         const remaining = loan.totalDue - loan.paidAmount;
-        if (input.amount <= 0n || input.amount > remaining) {
+        if (input.amount <= 0n || input.amount > remaining + 100n) {
           throw new AppError(ErrorCode.VALIDATION_ERROR, 'Amount repayment tidak valid');
         }
         const loanPool = await tx.walletAccount.findUniqueOrThrow({ where: { accountCode: 'LOAN_POOL_ACCOUNT' } });
