@@ -48,7 +48,7 @@ export class AuthService {
         data: {
           id: userId,
           name: input.name,
-          email: input.email,
+          email: input.email.toLowerCase().trim(),
           passwordHash,
           role: 'WALLET_USER',
         },
@@ -119,6 +119,17 @@ export class AuthService {
         metadata: { ip },
       });
       throw new AppError(ErrorCode.UNAUTHORIZED, 'Email atau password salah');
+    }
+    if (user.status === 'SUSPENDED') {
+      await this.audit.record({
+        serviceName: 'centralbank-core',
+        action: 'LOGIN_FAILED_SUSPENDED',
+        targetType: 'login_email',
+        targetId: normalizedEmail,
+        requestId,
+        metadata: { ip },
+      });
+      throw new AppError(ErrorCode.FORBIDDEN, 'Akun Anda ditangguhkan');
     }
     await this.audit.record({
       actorUserId: user.id,

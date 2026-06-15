@@ -10,11 +10,15 @@ export const authController = {
 
       if (typeof name !== 'string' || name.length > 120 || typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== 'string' || password.length < 8 || password.length > 128 || !/^\d{6}$/.test(String(pin))) {
         return responseHelper.error(
-          res, 
-          'BAD_REQUEST', 
+          res,
+          'BAD_REQUEST',
           'Data registrasi tidak valid. Gunakan email valid, password 8-128 karakter, dan PIN 6 digit.',
           400
         );
+      }
+
+      if (phone && (typeof phone !== 'string' || !/^\+?[1-9]\d{6,14}$/.test(phone))) {
+        return responseHelper.error(res, 'BAD_REQUEST', 'Format nomor telepon tidak valid', 400);
       }
 
       const result = await authService.register(name, email, phone, password, pin, role || 'RETAIL_CUSTOMER');

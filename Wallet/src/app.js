@@ -80,7 +80,7 @@ app.put('/api/v1/wallets/me/kyc-document', walletController.updateKycDocument);
 
 // P0 Security: Gate test invoice helper to development environment only
 if (config.nodeEnv !== 'production') {
-  app.post('/api/v1/wallets/me/invoice/generate-test', walletController.generateTestInvoice);
+  app.post('/api/v1/wallets/me/invoice/generate-test', authMiddleware, requireRole('MANAGER', 'TELLER', 'CENTRAL_BANK_ADMIN'), walletController.generateTestInvoice);
 }
 
 // Legacy self-service simulation routes. Real teller operations use Central Bank /api/v1/teller/*.

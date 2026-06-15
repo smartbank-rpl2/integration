@@ -42,6 +42,21 @@ export class PaymentRequestService {
         throw new AppError(ErrorCode.FORBIDDEN, 'Payer wallet bukan milik pengguna yang terautentikasi');
       }
       await tx.walletAccount.findUniqueOrThrow({ where: { id: input.payeeWalletId } });
+
+      // Enforce rate limiting / daily limits for payment request creation
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      const count = await tx.paymentRequest.count({
+        where: {
+          payerWalletId: input.payerWalletId,
+          createdAt: { gte: startOfDay },
+        },
+      });
+      const dailyLimit = Number(process.env.DAILY_TRANSACTION_LIMIT ?? '10');
+      if (count >= dailyLimit) {
+        throw new AppError(ErrorCode.DAILY_LIMIT_EXCEEDED, 'Limit pembuatan payment request harian tercapai');
+      }
+
       const quote = await this.fees.quote({ tx, sourceApp: input.sourceApp, amount: input.grossAmount });
       const id = randomUUID();
       await tx.paymentRequest.create({

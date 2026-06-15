@@ -10,16 +10,17 @@ export const jwtMiddleware = (req, res, next) => {
 
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       data: null,
       error: { code: 'UNAUTHORIZED', message: 'Token tidak ditemukan atau format salah', details: {} },
       meta: { request_id: req.id || 'req_unknown', timestamp: new Date().toISOString() },
     });
+    return;
   }
 
   const token = authHeader.split(' ')[1];
-  
+
   try {
     // Note: In real app, secret should match what Central-Bank/Wallet uses
     const secret = process.env.JWT_SECRET;
@@ -29,18 +30,22 @@ export const jwtMiddleware = (req, res, next) => {
       audience: process.env.JWT_AUDIENCE || 'smartbank-clients',
     });
     req.user = decoded;
-    
+
     // Pass user info to downstream via headers
-    req.headers['x-user-id'] = decoded.userId || decoded.sub;
-    req.headers['x-user-role'] = decoded.role;
-    
+    const safeUserId = String(decoded.userId || decoded.sub).slice(0, 64);
+    const safeRole = String(decoded.role || '').slice(0, 32);
+
+    req.headers['x-user-id'] = safeUserId;
+    req.headers['x-user-role'] = /^[A-Za-z0-9_]+$/.test(safeRole) ? safeRole : 'unknown';
+
     next();
   } catch (err) {
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       data: null,
       error: { code: 'UNAUTHORIZED', message: 'Token tidak valid atau kedaluwarsa', details: {} },
       meta: { request_id: req.id || 'req_unknown', timestamp: new Date().toISOString() },
     });
+    return;
   }
 };

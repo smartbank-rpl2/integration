@@ -135,21 +135,23 @@ export const idempotencyMiddleware = async (req, res, next) => {
 
     // Step 5: Wrap res.json() to save response on completion
     const originalJson = res.json.bind(res);
-    res.json = function (body) {
+    res.json = async function (body) {
       // Restore immediately to avoid infinite recursion
       res.json = originalJson;
 
       // Only cache non-5xx responses (5xx = server error, don't cache)
       if (res.statusCode < 500) {
         const wrapper = { statusCode: res.statusCode, body };
-        db.query(
-          `UPDATE idempotency_keys
-             SET response_body = ?, status = 'COMPLETED', updated_at = ?
-           WHERE idempotency_key = ? AND status = 'PROCESSING'`,
-          [JSON.stringify(wrapper), new Date(), key]
-        ).catch((err) =>
-          console.error('⚠️ Gagal mengupdate idempotency record:', err.message)
-        );
+        try {
+          await db.query(
+            `UPDATE idempotency_keys
+               SET response_body = ?, status = 'COMPLETED', updated_at = ?
+             WHERE idempotency_key = ? AND status = 'PROCESSING'`,
+            [JSON.stringify(wrapper), new Date(), key]
+          );
+        } catch (err) {
+          console.error('⚠️ Gagal mengupdate idempotency record:', err.message);
+        }
       }
 
       return originalJson(body);

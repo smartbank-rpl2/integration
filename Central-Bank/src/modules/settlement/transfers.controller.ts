@@ -4,6 +4,8 @@ import { Request } from 'express';
 import { CurrentUser, RequestUser } from '../../common/current-user.decorator';
 import { requireIdempotencyKey, requestHash, requestId } from '../../common/request-utils';
 import { Roles } from '../../common/roles.decorator';
+import { AppError } from '../../common/app-error';
+import { ErrorCode } from '../../common/error-codes';
 import { UserRole } from '@prisma/client';
 import { MoneyService } from '../money/money.service';
 import { WalletAccountService } from '../wallets/wallet-account.service';
@@ -39,6 +41,9 @@ export class TransfersController {
   @Post()
   async transfer(@Body() dto: TransferDto, @Req() req: Request, @CurrentUser() user: RequestUser) {
     const payerWallet = await this.wallets.getPrimaryWallet(user.sub);
+    if (payerWallet.id === dto.to_wallet_id) {
+      throw new AppError(ErrorCode.VALIDATION_ERROR, 'Tidak dapat mentransfer ke wallet sendiri');
+    }
     return this.settlement.settleTransfer({
       payerWalletId: payerWallet.id,
       payeeWalletId: dto.to_wallet_id,

@@ -62,8 +62,21 @@ export const auditRequestMiddleware = (req, res, next) => {
 
 export const createRateLimiter = ({ windowMs, limit, action }) => {
   const hits = new Map();
+
+  // Periodically clean up stale entries to prevent memory leaks
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of hits.entries()) {
+      if (entry.resetAt <= now) {
+        hits.delete(key);
+      }
+    }
+  }, windowMs);
+
   return (req, res, next) => {
     const now = Date.now();
+    // In production proxy scenarios, X-Forwarded-For could be spoofed.
+    // Ensure trustProxy is configured correctly in express app.
     const key = req.ip || req.socket.remoteAddress || 'unknown';
     const current = hits.get(key);
     const entry = !current || current.resetAt <= now

@@ -16,6 +16,19 @@ const PORT = process.env.PORT || 4000;
 
 const CENTRAL_BANK_URL = process.env.CENTRAL_BANK_URL || 'http://localhost:3000';
 const WALLET_URL = process.env.WALLET_URL || 'http://localhost:3001';
+
+// SSRF Protection: Validate upstream URLs
+try {
+  const cbUrl = new URL(CENTRAL_BANK_URL);
+  const walletUrl = new URL(WALLET_URL);
+  const allowedHosts = ['localhost', '127.0.0.1', 'central-bank', 'wallet', 'api.smartbank.local'];
+  if (!allowedHosts.includes(cbUrl.hostname) && !cbUrl.hostname.endsWith('.internal')) {
+    console.warn(`⚠️ Warning: Unrecognized CENTRAL_BANK_URL host: ${cbUrl.hostname}`);
+  }
+} catch (err) {
+  throw new Error('Invalid CENTRAL_BANK_URL or WALLET_URL environment variable');
+}
+
 const allowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || 'http://localhost:3001,http://localhost:5173')
   .split(',')
   .map((origin) => origin.trim())
@@ -40,7 +53,13 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'X-Request-Id', 'X-Wallet-Pin', 'x-request-id', 'x-wallet-pin'],
+  maxAge: 86400,
 }));
+// Make sure Vary: Origin is explicitly handled
+app.use((req, res, next) => {
+  res.setHeader('Vary', 'Origin');
+  next();
+});
 app.use(securityHeaders);
 app.use(auditRequests);
 app.use(createRateLimiter({ windowMs: 60_000, limit: 100 }));
@@ -50,23 +69,39 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Handle preflight OPTIONS before proxy
+app.options('/api/bank', (req, res) => { res.status(204).end(); });
+app.options('/api/wallet', (req, res) => { res.status(204).end(); });
+
+// Parse bodies explicitly to validate size
+app.use(express.json({ limit: '2mb' }));
+app.use(express.urlencoded({ limit: '2mb', extended: false }));
+
 // Proxy to Central Bank
 app.use('/api/bank', jwtMiddleware, createProxyMiddleware({
   target: CENTRAL_BANK_URL,
   changeOrigin: true,
-  on: { error: proxyErrorHandler },
+  proxyTimeout: 30000,
+  on: {
+    error: proxyErrorHandler,
+    proxyReq: (proxyReq) => proxyReq.setTimeout(30000)
+  },
   pathRewrite: {
-    '^/': '/api/v1/', // rewrite path because /api/bank is stripped
+    '^/api/bank': '/api/v1', // rewrite path
   },
 }));
 
 // Proxy to Wallet
-app.use('/api/wallet', createProxyMiddleware({
+app.use('/api/wallet', jwtMiddleware, createProxyMiddleware({
   target: WALLET_URL,
   changeOrigin: true,
-  on: { error: proxyErrorHandler },
+  proxyTimeout: 30000,
+  on: {
+    error: proxyErrorHandler,
+    proxyReq: (proxyReq) => proxyReq.setTimeout(30000)
+  },
   pathRewrite: {
-    '^/': '/api/', // rewrite path because /api/wallet is stripped
+    '^/api/wallet': '/api', // rewrite path
   },
 }));
 
@@ -90,6 +125,9 @@ app.use((err, req, res, _next) => {
   });
 });
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 API Gateway running on port ${PORT}`);
 });
+
+process.on('SIGTERM', () => { server.close(() => process.exit(0)); });
+process.on('SIGINT', () => { server.close(() => process.exit(0)); });
